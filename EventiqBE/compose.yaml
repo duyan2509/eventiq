@@ -1,0 +1,14 @@
+﻿services:
+  eventiq.api:
+    image: eventiq.api
+    build:
+      context: .
+      dockerfile: Eventiq.Api/Dockerfile
+
+  eventiq.domain:
+    image: eventiq.domain
+    build:
+      context: .
+      dockerfile: Eventiq.Domain/Dockerfile
+
+
