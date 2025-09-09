@@ -8,7 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8"/>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
+        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+        <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.1-dev-02317" />
+        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
     </ItemGroup>
 
     <ItemGroup>
@@ -18,13 +23,13 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Controllers\" />
       <Folder Include="Hubs\" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Eventiq.Application\Eventiq.Application.csproj" />
       <ProjectReference Include="..\Eventiq.Infrastructure\Eventiq.Infrastructure.csproj" />
+      <ProjectReference Include="..\Eventiq.Migrations\Eventiq.Migrations.csproj" />
     </ItemGroup>
 
 </Project>
