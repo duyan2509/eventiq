@@ -105,5 +105,10 @@ jobs:
         run: | 
           docker compose -f EventiqBE/compose.yaml up -d 
           sleep 20
+      - name: Wait for API (docker healthcheck)
+        run: |
+          docker compose -f EventiqBE/compose.yaml ps
+          docker inspect --format='{{json .State.Health.Status}}' $(docker ps -q -f name=eventiq.api)
+
       - name: Run tests
         run: dotnet test EventiqBE/Eventiq.Api.Tests/Eventiq.Api.Tests.csproj
