@@ -5,12 +5,6 @@
       context: .
       dockerfile: Eventiq.Api/Dockerfile
 
-  eventiq.domain:
-    image: eventiq.domain
-    build:
-      context: .
-      dockerfile: Eventiq.Domain/Dockerfile
-
   postgres:
     image: postgres:16
     container_name: pgdb
