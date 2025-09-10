@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Eventiq.Infrastructure", "E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Eventiq.Migrations", "Eventiq.Migrations\Eventiq.Migrations.csproj", "{0D0F5733-AE7C-4053-96BB-A15B4C9C26B5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Eventiq.Api.Tests", "Eventiq.Api.Tests\Eventiq.Api.Tests.csproj", "{03C7AB71-E9C2-4E36-BE43-44095D7BC878}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,5 +43,9 @@ Global
 		{0D0F5733-AE7C-4053-96BB-A15B4C9C26B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0D0F5733-AE7C-4053-96BB-A15B4C9C26B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0D0F5733-AE7C-4053-96BB-A15B4C9C26B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{03C7AB71-E9C2-4E36-BE43-44095D7BC878}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03C7AB71-E9C2-4E36-BE43-44095D7BC878}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03C7AB71-E9C2-4E36-BE43-44095D7BC878}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03C7AB71-E9C2-4E36-BE43-44095D7BC878}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
