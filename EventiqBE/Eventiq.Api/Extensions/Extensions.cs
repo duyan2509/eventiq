@@ -82,6 +82,7 @@ public static class Extensions
         });
 
         builder.Services.AddControllers();
+        builder.Services.AddHealthChecks();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(opt =>
         {
