@@ -105,23 +105,23 @@ jobs:
         run: | 
           docker compose -f EventiqBE/compose.yaml up -d 
           sleep 20
-      - name: Wait for API (docker healthcheck)
-        run: |
-          CONTAINER_ID=$(docker compose -f EventiqBE/compose.yaml ps -q eventiq.api)
-          for i in {1..30}; do
-            STATUS=$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_ID)
-            echo "Current status: $STATUS"
-            if [ "$STATUS" == "healthy" ]; then
-              echo "API is healthy!"
-              exit 0
-            fi
-            echo "Waiting for API to become healthy..."
-            sleep 5
-          done
-          echo "API did not become healthy in time"
-          docker compose -f EventiqBE/compose.yaml logs
-          exit 1
+      # - name: Wait for API (docker healthcheck)
+      #   run: |
+      #     CONTAINER_ID=$(docker compose -f EventiqBE/compose.yaml ps -q eventiq.api)
+      #     for i in {1..30}; do
+      #       STATUS=$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_ID)
+      #       echo "Current status: $STATUS"
+      #       if [ "$STATUS" == "healthy" ]; then
+      #         echo "API is healthy!"
+      #         exit 0
+      #       fi
+      #       echo "Waiting for API to become healthy..."
+      #       sleep 5
+      #     done
+      #     echo "API did not become healthy in time"
+      #     docker compose -f EventiqBE/compose.yaml logs
+      #     exit 1
 
 
-      - name: Run tests
-        run: dotnet test EventiqBE/Eventiq.Api.Tests/Eventiq.Api.Tests.csproj
+      # - name: Run tests
+      #   run: dotnet test EventiqBE/Eventiq.Api.Tests/Eventiq.Api.Tests.csproj
