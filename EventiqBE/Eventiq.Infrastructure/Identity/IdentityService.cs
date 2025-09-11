@@ -12,6 +12,8 @@ public class IdentityService(
     IJwtService jwtService)
     : IIdentityService
 {
+    private readonly IJwtService _jwtService = jwtService;
+
     public async Task<UserDto> GetByIdAsync(Guid id)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -30,7 +32,7 @@ public class IdentityService(
     {
         var user = new ApplicationUser
         {
-            UserName = $"{dto.FirstName} {dto.LastName}",
+            UserName = dto.Email,
             Email = dto.Email,
         };
 
@@ -78,7 +80,7 @@ public class IdentityService(
             .Distinct()
             .ToList();
 
-        var token = jwtService
+        var token = _jwtService
                 .GenerateToken(Guid.Parse(user.Id), 
                 user.Email!,
                 roles.ToList(),
@@ -91,5 +93,32 @@ public class IdentityService(
     {
         var user = await userManager.FindByEmailAsync(email);
         return user != null;
+    }
+
+    public async Task<string> GeneratePasswordResetTokenAsync(string email)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user == null)
+            throw new Exception($"User not found with email ${email}");
+
+        return await userManager.GeneratePasswordResetTokenAsync(user);
+    }
+
+    public async Task ChangePasswordAsync(Guid userId, string oldPassword, string newPassword)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+            throw new UnauthorizedAccessException("User not found");
+        await userManager.ChangePasswordAsync(user,oldPassword, newPassword);
+    }
+
+    public async Task ResetPasswordAsync(string email, string code, string newPassword)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user == null)
+            throw new Exception($"User not found with email: {email}");
+        var result = await userManager.ResetPasswordAsync(user, code, newPassword);
+        if(!result.Succeeded)
+            throw new Exception($"{result.Errors.First().Description}");
     }
 }

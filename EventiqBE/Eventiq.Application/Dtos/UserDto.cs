@@ -20,12 +20,7 @@ public class CreateUserDto
     [Required]
     [StringLength(100, MinimumLength = 6)]
     public string Password { get; set; } = string.Empty;
-    [Required]
-    [StringLength(100)]
-    public string? FirstName { get; set; }
-    [Required]
-    [StringLength(100)]
-    public string? LastName { get; set; }
+
 
 }
 
@@ -53,4 +48,9 @@ public class LoginDto
 public class LoginResponseDto
 {
     public string Token { get; set; } = string.Empty;
+}
+public class ChangePasswordRequest
+{
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
 }

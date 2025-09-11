@@ -108,7 +108,7 @@ public static class Extensions
         builder.Services
             .InjectServices()
             .AddAutoMapper()
-            .AddInfrastructure();
+            .AddInfrastructure(builder.Configuration);
         
         builder.Services.AddScoped<IJwtService,JwtService>();
         
