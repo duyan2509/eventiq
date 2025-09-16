@@ -9,10 +9,26 @@ namespace Eventiq.Infrastructure;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : IdentityDbContext<ApplicationUser>(options)
 {
+    private DbSet<Event> Events { get; set; }
+    private DbSet<EventAddress> EventAddresses { get; set; }
+    private DbSet<Organization> Organizations { get; set; }
+    private DbSet<EventItem> EventItem { get; set; }
+    private DbSet<Ticket> Tickets { get; set; }
+    private DbSet<TicketClass> TicketClasses { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<ApplicationUser>()
+            .HasMany<Organization>(u => u.Organizations)
+            .WithOne()
+            .HasForeignKey(u => u.UserId);
+        modelBuilder.Entity<ApplicationUser>()
+            .HasMany<Ticket>(u => u.Tickets)
+            .WithOne()
+            .HasForeignKey(u => u.UserId);
+        
         // Global query filter for soft delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
@@ -25,7 +41,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 method.Invoke(null, new object[] { modelBuilder });
             }
         }
-
+        
         modelBuilder.HasDefaultSchema("identity");
     }
 
