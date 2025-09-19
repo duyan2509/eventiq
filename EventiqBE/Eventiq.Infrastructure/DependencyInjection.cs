@@ -1,5 +1,8 @@
-﻿using Eventiq.Application.Interfaces.Services;
+﻿using Eventiq.Application.Interfaces;
+using Eventiq.Application.Interfaces.Repositories;
+using Eventiq.Application.Interfaces.Services;
 using Eventiq.Infrastructure.Identity;
+using Eventiq.Infrastructure.Persistence;
 using Eventiq.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +24,13 @@ public static class DependencyInjection
                 config["Mailtrap:Password"]
             ));
 
-
+        services.AddScoped<ISeatService, SeatsIoService>();
+        return services;
+    }
+    public static IServiceCollection AddPersistence(this IServiceCollection services,IConfiguration config)
+    {
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         return services;
     }
 }

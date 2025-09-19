@@ -10,15 +10,22 @@ namespace Eventiq.Infrastructure.Services;
 
 public class JwtService(IConfiguration config) : IJwtService
 {
-    public string GenerateToken(Guid userId, string email, List<string> roles, List<string> permissions)
+    public string GenerateToken(Guid userId,
+        string email, 
+        List<string> roles, 
+        List<string> permissions,
+        string securityStamp
+        )
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        
+
         var claims = new List<Claim>
         {
             new Claim("userId", userId.ToString()),
-            new Claim("email", email)
+            new Claim("email", email),
+            new Claim("SecurityStamp", securityStamp)
+
         };
 
         foreach (var role in roles)

@@ -3,6 +3,7 @@ using System;
 using Eventiq.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Eventiq.Migrations.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250918135005_EventPayment")]
+    partial class EventPayment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -56,6 +59,9 @@ namespace Eventiq.Migrations.Migrations
                     b.Property<DateTime>("End")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("EventAddressId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -69,20 +75,15 @@ namespace Eventiq.Migrations.Migrations
                     b.Property<DateTime>("Start")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("EventAddressId")
                         .IsUnique();
 
                     b.HasIndex("OrganizationId");
-
-                    b.HasIndex("Start", "End", "Status");
 
                     b.ToTable("Events", "identity");
                 });
@@ -107,13 +108,6 @@ namespace Eventiq.Migrations.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Detail")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -129,9 +123,6 @@ namespace Eventiq.Migrations.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EventId")
-                        .IsUnique();
 
                     b.ToTable("EventAddresses", "identity");
                 });
@@ -493,24 +484,21 @@ namespace Eventiq.Migrations.Migrations
 
             modelBuilder.Entity("Eventiq.Domain.Entities.Event", b =>
                 {
+                    b.HasOne("Eventiq.Domain.Entities.EventAddress", "EventAddress")
+                        .WithOne("Event")
+                        .HasForeignKey("Eventiq.Domain.Entities.Event", "EventAddressId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Eventiq.Domain.Entities.Organization", "Organization")
                         .WithMany("Events")
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("EventAddress");
+
                     b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.EventAddress", b =>
-                {
-                    b.HasOne("Eventiq.Domain.Entities.Event", "Event")
-                        .WithOne("EventAddress")
-                        .HasForeignKey("Eventiq.Domain.Entities.EventAddress", "EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Event");
                 });
 
             modelBuilder.Entity("Eventiq.Domain.Entities.EventItem", b =>
@@ -622,12 +610,15 @@ namespace Eventiq.Migrations.Migrations
 
             modelBuilder.Entity("Eventiq.Domain.Entities.Event", b =>
                 {
-                    b.Navigation("EventAddress")
-                        .IsRequired();
-
                     b.Navigation("EventItem");
 
                     b.Navigation("TicketClasses");
+                });
+
+            modelBuilder.Entity("Eventiq.Domain.Entities.EventAddress", b =>
+                {
+                    b.Navigation("Event")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Eventiq.Domain.Entities.EventItem", b =>

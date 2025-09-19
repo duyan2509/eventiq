@@ -4,6 +4,6 @@ namespace Eventiq.Application.Interfaces.Services;
 
 public interface IJwtService
 {
-    string GenerateToken(Guid userId, string email, List<string> roles, List<string> permissions);
+    string GenerateToken(Guid userId, string email, List<string> roles, List<string> permissions, string securityStamp);
     ClaimsPrincipal? ValidateToken(string token);
 }

@@ -11,8 +11,17 @@ public class Event:BaseEntity
     public virtual ICollection<TicketClass> TicketClasses { get; set; } = new List<TicketClass>();
     public virtual required Organization Organization { get; set; } 
     public Guid OrganizationId { get; set; }
-    public string? PaymentQR {get; set;}
-    public Guid EventAddressId { get; set; }
+    public int BankCode { get; set; }
+    public string AccountNumber { get; set; } = "";
+    public string AccountName { get; set; } = "";
     public virtual EventAddress EventAddress { get; set; }
-    
+    public EventStatus Status { get; set; } = EventStatus.Draft;
+
+}
+
+public enum EventStatus
+{
+    Draft,
+    Published,
+    Pending
 }

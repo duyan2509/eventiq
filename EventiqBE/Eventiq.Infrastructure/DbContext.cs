@@ -28,7 +28,25 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasMany<Ticket>(u => u.Tickets)
             .WithOne()
             .HasForeignKey(u => u.UserId);
+        modelBuilder.Entity<Organization>()
+            .HasIndex(o => o.Name)
+            .IsUnique();
+        modelBuilder.Entity<Organization>()
+            .HasIndex(o => o.Name)
+            .IsUnique();
         
+        modelBuilder.Entity<Event>()
+            .HasIndex(o => o.Name)
+            .IsUnique();
+
+        modelBuilder.Entity<Event>()
+            .HasIndex(o =>
+                new
+                {
+                    o.Start,
+                    o.End,
+                    o.Status
+                });
         // Global query filter for soft delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {

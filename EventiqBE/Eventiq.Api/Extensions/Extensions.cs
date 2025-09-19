@@ -1,9 +1,11 @@
 ﻿
+using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using Eventiq.Application;
 using Eventiq.Application.Interfaces.Services;
 using Eventiq.Infrastructure;
+using Eventiq.Infrastructure.Cloudinary;
 using Eventiq.Infrastructure.Identity;
 using Eventiq.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -63,8 +65,31 @@ public static class Extensions
                     {
                         Console.WriteLine("JWT challenge: " + ctx.ErrorDescription);
                         return Task.CompletedTask;
+                    },
+                    OnTokenValidated = async context =>
+                    {
+                        var userManager = context.HttpContext.RequestServices
+                            .GetRequiredService<UserManager<ApplicationUser>>();
+                        var claimsIdentity = context.Principal?.Identity as ClaimsIdentity;
+
+                        var userId = claimsIdentity?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                        var tokenStamp = claimsIdentity?.FindFirst("SecurityStamp")?.Value;
+
+                        if (userId != null && tokenStamp != null)
+                        {
+                            var user = await userManager.FindByIdAsync(userId);
+                            var currentStamp = await userManager.GetSecurityStampAsync(user);
+
+                            if (tokenStamp != currentStamp)
+                            {
+                                context.Fail("Token has been revoked");
+                                Console.WriteLine("JWT invalid: " );
+
+                            }
+                        }
                     }
                 };
+                
             });
         builder.Services.ConfigureApplicationCookie(options =>
         {
@@ -107,13 +132,21 @@ public static class Extensions
 
         builder.Services
             .InjectServices()
-            .AddAutoMapper()
-            .AddInfrastructure(builder.Configuration);
-        
+            .AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies())
+            .AddInfrastructure(builder.Configuration)
+            .AddCloudinaryInfrastructure(builder.Configuration)
+            .AddPersistence(builder.Configuration)
+            .AddOrgAuthorize(builder.Configuration);
         builder.Services.AddScoped<IJwtService,JwtService>();
-        
-        
     }
-
+    public static IServiceCollection AddOrgAuthorize(this IServiceCollection services,IConfiguration config)
+    {
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("Event.Create", policy =>
+                policy.RequireClaim("Permission", "Event.Create"));
+        });
+        return services;
+    }
  
 }

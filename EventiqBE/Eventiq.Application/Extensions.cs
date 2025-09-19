@@ -12,6 +12,8 @@ public static class Main
     public static IServiceCollection InjectServices(this IServiceCollection services)
     {
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IEventService, EventService>();
         return services;
     }
     public static IServiceCollection AddAutoMapper(this IServiceCollection services)
