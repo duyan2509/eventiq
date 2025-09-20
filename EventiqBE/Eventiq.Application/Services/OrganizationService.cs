@@ -42,13 +42,14 @@ public class OrganizationService:IOrganizationService
                 UserId = userId.ToString()
             };
             await _orgRepository.AddAsync(org);
-            uploadedUrl = await _storageService.UploadAsync(dto.AvatarStream, dto.Name);
+            uploadedUrl = await _storageService.UploadAsync(dto.AvatarStream, org.Id.ToString());
             if (uploadedUrl != null)
                 org.Avatar = uploadedUrl;
             else 
                 throw new Exception("Could not upload avatar");
             await _orgRepository.UpdateAsync(org);
-            string? newJwt = await _identityService.AssignOrgRole(userId);
+            await _identityService.AssignOrgRole(userId);
+            string newJwt = await _identityService.GenerateNewJwt(userId);
             await _unitOfWork.CommitAsync();
             
             var response = _mapper.Map<CreateOrganizationResponse>(org);
@@ -118,15 +119,19 @@ public class OrganizationService:IOrganizationService
             throw new UnauthorizedAccessException("Only owner can delete organization");
         var eventCount = await _eventRepository.GetOrgEventCountAsync(org.Id);
         if (eventCount > 0)
+            throw new Exception("Organization delete failed because it has pending or published event");
+        else
         {
             await _storageService.DeleteAsync(org.Avatar);
             await _orgRepository.HardDeleteAsync(id);
         }
-        else throw new Exception("Organization delete failed because it has pending or published event");
         var userOrgCount = await _orgRepository.GetUserOrgCountAsync(userId);
         string? newJwt = null;
-        if(userOrgCount == 0)
+        if (userOrgCount == 0)
+        {
             await _identityService.RemoveOrgRole(userId);
+            newJwt = await _identityService.GenerateNewJwt(userId);
+        }
         return new  DeleteOrganizationResponse
         {
             Jwt = newJwt,

@@ -30,6 +30,7 @@ public static class DependencyInjection
     public static IServiceCollection AddPersistence(this IServiceCollection services,IConfiguration config)
     {
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         return services;
     }

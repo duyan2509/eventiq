@@ -13,6 +13,7 @@ public class MappingProfile : Profile
         CreateMap<UpdateOrganizationDto, OrganizationDto>();
         CreateMap<Organization, OrganizationDto>();
         CreateMap<Organization, OrganizationDto>();
+        CreateMap<Organization, CreateOrganizationResponse>();
         CreateMap<Event, EventDto>();
         
     }

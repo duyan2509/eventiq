@@ -124,57 +124,60 @@ public class IdentityService(
             throw new Exception($"{result.Errors.First().Description}");
     }
 
-    public async Task<string?> AssignOrgRole(Guid userId)
+    public async Task AssignOrgRole(Guid userId)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());
         if (user != null)
         {
             if (!await userManager.IsInRoleAsync(user, AppRoles.Org))
-            {
                 await userManager.AddToRoleAsync(user, AppRoles.Org);
-                var roles = await userManager.GetRolesAsync(user);
-                var roleClaims = new List<Claim>();
-                foreach (var role in roles)
-                {
-                    var r = await roleManager.FindByNameAsync(role);
-                    var claims = await roleManager.GetClaimsAsync(r!);
-                    roleClaims.AddRange(claims);
-                }
-
-                var permissions = roleClaims
-                    .Where(c => c.Type == "Permission")
-                    .Select(c => c.Value)
-                    .Distinct()
-                    .ToList();
-
-                var securityStamp = await userManager.GetSecurityStampAsync(user);
-
-                var token = _jwtService
-                    .GenerateToken(Guid.Parse(user.Id), 
-                        user.Email!,
-                        roles.ToList(),
-                        permissions,
-                        securityStamp);
-            }
         }
 
-        return null;
+        else throw new Exception($"User not found with email: {userId}");
     }
 
-    public async Task<string?> RemoveOrgRole(Guid userId)
+    public async Task RemoveOrgRole(Guid userId)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());
         if (user != null)
         {
             await userManager.RemoveFromRoleAsync(user, AppRoles.Org);
 
-            await userManager.UpdateSecurityStampAsync(user);   
+            await userManager.UpdateSecurityStampAsync(user);  
         }
-
-        return null;
+        else throw new Exception($"User not found with email: {userId}");
     }
 
+    public async Task<string> GenerateNewJwt(Guid userId)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user != null)
+        {
+            var roles = await userManager.GetRolesAsync(user);
+            var roleClaims = new List<Claim>();
+            foreach (var role in roles)
+            {
+                var r = await roleManager.FindByNameAsync(role);
+                var claims = await roleManager.GetClaimsAsync(r!);
+                roleClaims.AddRange(claims);
+            }
 
+            var permissions = roleClaims
+                .Where(c => c.Type == "Permission")
+                .Select(c => c.Value)
+                .Distinct()
+                .ToList();
 
+            var securityStamp = await userManager.GetSecurityStampAsync(user);
 
+            var token = _jwtService
+                .GenerateToken(Guid.Parse(user.Id), 
+                    user.Email!,
+                    roles.ToList(),
+                    permissions,
+                    securityStamp);
+            return token;
+        }
+        throw new Exception($"User not found with userId: {userId}");
+    }
 }

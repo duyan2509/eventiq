@@ -18,6 +18,7 @@ public interface IIdentityService
     /// </summary>
     /// <param name="userId"></param>
     /// <returns></returns>
-    Task<string?>AssignOrgRole(Guid userId);
-    Task<string?> RemoveOrgRole(Guid userId);
+    Task AssignOrgRole(Guid userId);
+    Task RemoveOrgRole(Guid userId);
+    Task<string> GenerateNewJwt(Guid userId);
 }
