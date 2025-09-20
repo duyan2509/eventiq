@@ -44,7 +44,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 new
                 {
                     o.Start,
-                    o.End,
                     o.Status
                 });
         // Global query filter for soft delete

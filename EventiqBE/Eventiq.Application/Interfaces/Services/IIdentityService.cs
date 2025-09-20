@@ -21,4 +21,5 @@ public interface IIdentityService
     Task AssignOrgRole(Guid userId);
     Task RemoveOrgRole(Guid userId);
     Task<string> GenerateNewJwt(Guid userId);
+    Task<List<Guid>> GetUserOrgsAsync(Guid userId);
 }

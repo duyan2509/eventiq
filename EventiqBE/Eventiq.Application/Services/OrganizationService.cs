@@ -56,10 +56,6 @@ public class OrganizationService:IOrganizationService
             response.Jwt= newJwt;
             return response;;
         }
-        catch (DuplicateNameException ex)
-        {
-            throw new DuplicateNameException("Organization name is existed in system");
-        }
         catch (Exception ex)
         {
             await _unitOfWork.RollbackAsync();

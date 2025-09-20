@@ -2,6 +2,7 @@
 using Eventiq.Application.Dtos;
 using Eventiq.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Eventiq.Infrastructure.Identity;
 
@@ -179,5 +180,14 @@ public class IdentityService(
             return token;
         }
         throw new Exception($"User not found with userId: {userId}");
+    }
+
+    public async Task<List<Guid>> GetUserOrgsAsync(Guid userId)
+    {
+        var orgIds = await userManager.Users
+            .Where(u => u.Id == userId.ToString())
+            .SelectMany(u => u.Organizations.Select(o => o.Id))
+            .ToListAsync();
+        return orgIds;
     }
 }

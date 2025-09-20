@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using Eventiq.Api.Request;
 using Eventiq.Application.Dtos;
-using Eventiq.Domain.Entities;
 
 namespace Eventiq.Api.Mapping;
 
