@@ -16,17 +16,22 @@ public class EventService:IEventService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEventAddressRepository _eventAddressRepository;
     private readonly IOrganizationRepository  _organizationRepository;
-    private readonly IIdentityService _identityService;
-    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository,IOrganizationRepository  organizationRepository, IIdentityService identityService)
+
+    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository)
     {
         _eventRepository = eventRepository;
         _mapper = mapper;
         _storageService = storageService;
         _unitOfWork = unitOfWork;
-        _eventAddressRepository =  eventAddressRepository;
+        _eventAddressRepository = eventAddressRepository;
         _organizationRepository = organizationRepository;
         _identityService = identityService;
+        _ticketClassRepository = ticketClassRepository;
     }
+
+    private readonly IIdentityService _identityService;
+    private readonly ITicketClassRepository _ticketClassRepository;
+   
 
     public async Task<CreateEventResponse> CreateEventInfoAsync(Guid userId, CreateEventDto dto)
     {
@@ -165,5 +170,72 @@ public class EventService:IEventService
             if (!userOrgs.Contains(orgId))
                 throw new UnauthorizedAccessException($"User does not belong to organization {orgId}");
         });
+    }
+
+    public async Task<TicketClassDto> CreateTicketClassAsync(Guid userId, Guid eventId, CreateTicketClassDto dto)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var ticketClass = _mapper.Map<TicketClass>(dto);
+        await _ticketClassRepository.AddAsync(ticketClass);
+        return  _mapper.Map<TicketClassDto>(ticketClass);
+    }
+    public async Task<TicketClassDto> UpdateTicketClassInfoAsync(Guid userId, Guid eventId, Guid ticketClassId, UpdateTicketClassInfoDto dto)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var ticketClass = await _ticketClassRepository.GetByIdAsync(ticketClassId);
+        if (ticketClass == null)
+            throw new Exception("Ticket class not found");
+        
+        if (dto.SaleEnd.HasValue && dto.SaleStart.HasValue)
+        {
+            if (dto.SaleEnd > dto.SaleStart)
+            {
+                ticketClass.SaleEnd = dto.SaleEnd.Value;
+                ticketClass.SaleStart = dto.SaleStart.Value;
+            }
+            else throw new Exception("Invalid sale time");
+        }
+        else if (dto.SaleEnd.HasValue)
+        {
+            if (dto.SaleEnd > ticketClass.SaleStart)
+            {
+                ticketClass.SaleEnd = dto.SaleEnd.Value;
+            }
+            else throw new Exception($"Sale end must be after sale start {ticketClass.SaleStart}");
+        }
+        else if (dto.SaleStart.HasValue)
+        {
+            if (ticketClass.SaleEnd > dto.SaleStart)
+            {
+                ticketClass.SaleStart = dto.SaleStart.Value;
+            }
+            else throw new Exception($"Sale start must be before sale end {ticketClass.SaleEnd}");
+        } 
+        
+        if(string.IsNullOrEmpty(dto.Name))
+            dto.Name = ticketClass.Name;
+        if(dto.Price!=null)
+            dto.Price = ticketClass.Price;
+        if(dto.MaxPerUser!=null)
+            dto.MaxPerUser = ticketClass.MaxPerUser;
+        await _ticketClassRepository.UpdateAsync(ticketClass);
+        return _mapper.Map<TicketClassDto>(ticketClass);
+    }
+
+    public async Task<IEnumerable<TicketClassDto>> GetEventTicketClassesAsync(Guid userId, Guid eventId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
+        var result = ticketClasses.Select(ticketClass => _mapper.Map<TicketClassDto>(ticketClass));
+        return result;
     }
 }

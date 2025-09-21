@@ -10,4 +10,7 @@ public interface IEventService
     Task<EventDto> UpdateEventInfoAsync(Guid userId, Guid eventId, UpdateEventDto dto); 
     Task<EventDto> GetByIdAsync(Guid id);
     Task ValidateEventOwnerAsync(Guid userId, List<Guid> orgIds);
+    Task<TicketClassDto> CreateTicketClassAsync(Guid userId, Guid eventId, CreateTicketClassDto dto);
+    Task<TicketClassDto> UpdateTicketClassInfoAsync(Guid userId, Guid eventId, Guid ticketClassId, UpdateTicketClassInfoDto dto);
+    Task<IEnumerable<TicketClassDto>> GetEventTicketClassesAsync(Guid userId, Guid eventId);
 }

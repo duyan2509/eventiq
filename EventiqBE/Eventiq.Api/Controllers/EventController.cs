@@ -59,6 +59,8 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
+    [Authorize(Policy = "Event.Update")]
+
     [HttpPatch("{eventId}/address")]
     public async Task<ActionResult<UpdateAddressResponse>> UpdateEventAddressAsync([FromRoute] Guid eventId, UpdateEventAddressDto dto)
     {
@@ -73,6 +75,7 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
+    [Authorize(Policy = "Event.Update")]
     [HttpPatch("{eventId}")]
     public async Task<ActionResult<EventDto>> UpdateEventInfoAsync([FromRoute] Guid eventId, UpdateEventRequest request)
     {
@@ -94,6 +97,7 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
+    [Authorize(Policy = "Event.Update")]
     [HttpPut("{eventId}/payment")]
     public async Task<ActionResult<PaymentInformationResponse>> UpdateEventPaymentAsync([FromRoute] Guid eventId, UpdatePaymentInformation dto)
     {
@@ -112,19 +116,50 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
+    [Authorize(Policy = "Event.Update")]
     [HttpPost("{eventId}/ticket-class")]
-    public async Task<ActionResult> PostTicketClass([FromRoute]Guid eventId)
+    public async Task<ActionResult<TicketClassDto>> PostTicketClass([FromRoute]Guid eventId, CreateTicketClassDto dto)
     {
         try
         {
-            return Ok();
+            var userId = GetCurrentUserId();
+            var response = await _eventService.CreateTicketClassAsync(userId, eventId, dto);
+            return Ok(response);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }
     }
-    
+    [Authorize(Policy = "Event.Update")]
+    [HttpPatch("{eventId}/ticket-class/{ticketClassId}")]
+    public async Task<ActionResult<TicketClassDto>> PatchTicketClass([FromRoute]Guid eventId, [FromRoute]Guid ticketClassId,UpdateTicketClassInfoDto dto)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.UpdateTicketClassInfoAsync(userId, eventId,ticketClassId, dto);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    [HttpGet("{eventId}/ticket-class")]
+    public async Task<ActionResult<IEnumerable<TicketClassDto>>> GetEventTicketClasses([FromRoute]Guid eventId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.GetEventTicketClassesAsync(userId, eventId);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
     [HttpPost("{eventId}/event-item")]
     public async Task<ActionResult> PostEventItem([FromRoute]Guid eventId)
     {
@@ -137,5 +172,5 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
-
+    
 }

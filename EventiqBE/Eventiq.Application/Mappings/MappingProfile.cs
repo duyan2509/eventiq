@@ -24,6 +24,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.EventId, opt => opt.MapFrom(src => src.Id));
         CreateMap<Event, UpdateAddressResponse>()
             .ForMember(dest => dest.EventId, opt => opt.MapFrom(src => src.Id));
-
+        CreateMap<TicketClass, TicketClassDto>();
+        CreateMap<CreateTicketClassDto, TicketClass>();
     }
 }

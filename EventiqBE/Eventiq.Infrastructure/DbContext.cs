@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Net.Sockets;
+using System.Text.RegularExpressions;
 using Eventiq.Domain.Entities;
 using Eventiq.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -46,6 +47,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                     o.Start,
                     o.Status
                 });
+
+        modelBuilder.Entity<TicketClass>()
+            .HasIndex(tc => tc.Name)
+            .IsUnique();
+        
         // Global query filter for soft delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {

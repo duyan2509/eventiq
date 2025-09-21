@@ -145,6 +145,20 @@ public static class Extensions
         {
             options.AddPolicy("Event.Create", policy =>
                 policy.RequireClaim("Permission", "Event.Create"));
+            options.AddPolicy("Event.Submit", policy =>
+                policy.RequireClaim("Permission", "Event.Submit"));
+            options.AddPolicy("Event.View", policy =>
+                policy.RequireClaim("Permission", "Event.View"));
+            options.AddPolicy("Event.Update", policy =>
+                policy.RequireClaim("Permission", "Event.Update"));
+            options.AddPolicy("Event.Cancel", policy =>
+                policy.RequireClaim("Permission", "Event.Cancel"));
+            options.AddPolicy("Event.RequestCancel", policy =>
+                policy.RequireClaim("Permission", "Event.RequestCancel"));
+            options.AddPolicy("Event.Assign", policy =>
+                policy.RequireClaim("Permission", "Event.Assign"));
+            options.AddPolicy("Event.AssignCancel", policy =>
+                policy.RequireClaim("Permission", "Event.AssignCancel"));
         });
         return services;
     }

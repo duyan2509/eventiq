@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IEventAddressRepository, EventAddressRepository>();
+        services.AddScoped<ITicketClassRepository, TicketClassRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         return services;
     }
