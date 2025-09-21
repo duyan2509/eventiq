@@ -9,5 +9,5 @@ public interface IEventService
     Task<UpdateAddressResponse> UpdateEventAddressAsync(Guid userId, Guid eventId, UpdateEventAddressDto dto);  
     Task<EventDto> UpdateEventInfoAsync(Guid userId, Guid eventId, UpdateEventDto dto); 
     Task<EventDto> GetByIdAsync(Guid id);
-    Task ValidateEventOwnerAsync(Guid userId, Guid orgId);
+    Task ValidateEventOwnerAsync(Guid userId, List<Guid> orgIds);
 }

@@ -82,8 +82,7 @@ public class EventService:IEventService
                 throw new Exception("Event not found");
             if (dto.OrganizationId != null)
             {
-                await ValidateEventOwnerAsync(userId, evnt.OrganizationId);
-                await ValidateEventOwnerAsync(userId, dto.OrganizationId.Value);
+                await ValidateEventOwnerAsync(userId, [evnt.OrganizationId,dto.OrganizationId.Value]);
                 evnt.OrganizationId = dto.OrganizationId.Value;
             }
             if(dto.Name != null)
@@ -120,7 +119,7 @@ public class EventService:IEventService
         var evnt = await _eventRepository.GetByIdAsync(eventId);
         if (evnt == null)
             throw new Exception("Event not found");
-        await ValidateEventOwnerAsync(userId,evnt.OrganizationId);
+        await ValidateEventOwnerAsync(userId,[evnt.OrganizationId]);
         evnt.BankCode = dto.BankCode;
         evnt.AccountNumber = dto.AccountNumber;
         evnt.AccountName = dto.AccountName;
@@ -133,7 +132,7 @@ public class EventService:IEventService
         var evnt = await _eventRepository.GetByIdAsync(eventId);
         if (evnt == null)
             throw new Exception("Event not found");
-        await ValidateEventOwnerAsync(userId, evnt.OrganizationId);
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
         var address = await _eventAddressRepository.GetByEventIdAsync(eventId);
         if(address == null)
             throw new Exception("Address not found");
@@ -158,10 +157,13 @@ public class EventService:IEventService
         throw new NotImplementedException();
     }
 
-    public async Task ValidateEventOwnerAsync(Guid userId, Guid orgId)
+    public async Task ValidateEventOwnerAsync(Guid userId, List<Guid> orgIds)
     {
         var userOrgs = await _identityService.GetUserOrgsAsync(userId);
-        if (!userOrgs.Contains(orgId))
-            throw new UnauthorizedAccessException("User does not belong to this organization");
+        orgIds.ForEach(orgId =>
+        {
+            if (!userOrgs.Contains(orgId))
+                throw new UnauthorizedAccessException($"User does not belong to organization {orgId}");
+        });
     }
 }
