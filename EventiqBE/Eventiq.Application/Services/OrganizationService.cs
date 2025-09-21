@@ -49,12 +49,14 @@ public class OrganizationService:IOrganizationService
                 throw new Exception("Could not upload avatar");
             await _orgRepository.UpdateAsync(org);
             await _identityService.AssignOrgRole(userId);
-            string newJwt = await _identityService.GenerateNewJwt(userId);
             await _unitOfWork.CommitAsync();
-            
+            var orgCount = await _orgRepository.GetUserOrgCountAsync(userId);
+            string? newJwt = null;
+            if (orgCount == 1)
+                newJwt = await _identityService.GenerateNewJwt(userId);
             var response = _mapper.Map<CreateOrganizationResponse>(org);
             response.Jwt= newJwt;
-            return response;;
+            return response;
         }
         catch (Exception ex)
         {

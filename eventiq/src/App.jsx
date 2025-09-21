@@ -1,18 +1,32 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { ConfigProvider, Spin } from 'antd';
+import enUS from 'antd/locale/en_US';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import AppRoutes from './AppRoutes';
+import './App.css';
+
+const AppContent = () => {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  return <AppRoutes />;
+};
 
 function App() {
-
   return (
-    <>
-      <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-        <h1 className="text-5xl font-bold">🏠 Home Page</h1>
-        <p className="mt-4 text-lg">TailwindCSS hoạt động rồi 🎉</p>
-      </div>
-    </>
-  )
+    <ConfigProvider locale={enUS}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ConfigProvider>
+  );
 }
 
-export default App
+export default App;

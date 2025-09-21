@@ -7,7 +7,8 @@ public class UserDto
     public string Id { get; set; }
     public string? Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-    //public string Role { get; set; } = "User"; 
+    
+    public List<string> Roles { get; set; } = new List<string>(); 
 }
 
 public class CreateUserDto
@@ -47,6 +48,7 @@ public class LoginDto
 
 public class LoginResponseDto
 {
+    public UserDto User { get; set; }
     public string Token { get; set; } = string.Empty;
 }
 public class ChangePasswordRequest

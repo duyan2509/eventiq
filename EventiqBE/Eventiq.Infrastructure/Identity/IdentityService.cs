@@ -20,12 +20,15 @@ public class IdentityService(
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user == null) 
             throw new Exception("User not found");
-
+        var roles = await userManager.GetRolesAsync(user);
+        if(roles==null)
+            throw new Exception("Role not found");
         return new UserDto
         {
             Id = user.Id,
             Email = user.Email!,
             Username = user.UserName,
+            Roles =   roles.ToList()
         };
     }
 
@@ -38,9 +41,11 @@ public class IdentityService(
         };
 
         var result = await userManager.CreateAsync(user, dto.Password);
-
         if (!result.Succeeded)
             throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+        var roleResult = await userManager.AddToRolesAsync(user, [AppRoles.User]);
+        if (!roleResult.Succeeded)
+            throw new Exception(string.Join(", ", roleResult.Errors.Select(e => e.Description)));
 
         return new UserDto
         {
@@ -89,7 +94,11 @@ public class IdentityService(
                 permissions,
                 securityStamp);
 
-        return new LoginResponseDto { Token = token };
+        return new LoginResponseDto
+        {
+            User = await GetByIdAsync(Guid.Parse(user.Id)),
+            Token = token
+        };
     }
 
     public async Task<bool> CheckEmailExists(string email)

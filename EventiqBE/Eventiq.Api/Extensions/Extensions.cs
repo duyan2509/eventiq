@@ -10,6 +10,7 @@ using Eventiq.Infrastructure.Identity;
 using Eventiq.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -29,11 +30,19 @@ public static class Extensions
             .AddDefaultTokenProviders();
         var jwtKey = builder.Configuration["Jwt:Key"] ?? "super_secret_key";
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowFrontend",
+                policy => policy.WithOrigins("http://localhost:3000") 
+                                .AllowAnyHeader()
+                                .AllowAnyMethod()
+                                .AllowCredentials());
+        });
 
         builder
             .Services.AddAuthentication(options =>
             {
-                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;            
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
@@ -52,7 +61,7 @@ public static class Extensions
                         Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
 
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero 
+                    ClockSkew = TimeSpan.Zero
                 };
                 opt.Events = new JwtBearerEvents
                 {
@@ -83,13 +92,13 @@ public static class Extensions
                             if (tokenStamp != currentStamp)
                             {
                                 context.Fail("Token has been revoked");
-                                Console.WriteLine("JWT invalid: " );
+                                Console.WriteLine("JWT invalid: ");
 
                             }
                         }
                     }
                 };
-                
+
             });
         builder.Services.ConfigureApplicationCookie(options =>
         {
@@ -106,7 +115,12 @@ public static class Extensions
 
         });
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers(options =>
+        {
+            options.Conventions.Add(new RouteTokenTransformerConvention(
+                new LowercaseControllerTransformer()));
+        });
+
         builder.Services.AddHealthChecks();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(opt =>
@@ -137,9 +151,9 @@ public static class Extensions
             .AddCloudinaryInfrastructure(builder.Configuration)
             .AddPersistence(builder.Configuration)
             .AddOrgAuthorize(builder.Configuration);
-        builder.Services.AddScoped<IJwtService,JwtService>();
+        builder.Services.AddScoped<IJwtService, JwtService>();
     }
-    public static IServiceCollection AddOrgAuthorize(this IServiceCollection services,IConfiguration config)
+    public static IServiceCollection AddOrgAuthorize(this IServiceCollection services, IConfiguration config)
     {
         services.AddAuthorization(options =>
         {
@@ -162,5 +176,12 @@ public static class Extensions
         });
         return services;
     }
- 
+    public class LowercaseControllerTransformer : IOutboundParameterTransformer
+    {
+        public string TransformOutbound(object value)
+        {
+            return value?.ToString().ToLowerInvariant();
+        }
+    }
+
 }

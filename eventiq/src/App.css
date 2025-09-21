@@ -1,42 +1,203 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* Tailwind CSS base styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Ant Design overrides for better integration with Tailwind */
+.ant-layout-header {
+  @apply sticky top-0 z-50;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.ant-input-search .ant-input-search-button {
+  @apply bg-blue-500 border-blue-500;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.ant-input-search .ant-input-search-button:hover {
+  @apply bg-blue-600 border-blue-600;
+}
+
+.ant-modal-header {
+  @apply border-b border-gray-200 py-5 px-6;
+}
+
+.ant-modal-title {
+  @apply text-lg font-semibold;
+}
+
+.ant-form-item-label > label {
+  @apply font-medium;
+}
+
+.ant-dropdown-menu {
+  @apply rounded-lg shadow-lg;
+}
+
+.ant-steps-item-title {
+  @apply font-medium;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ant-layout-header {
+    @apply px-4;
   }
-  to {
-    transform: rotate(360deg);
+  
+  .ant-input-search {
+    @apply mx-4;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 15px;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.card {
-  padding: 2em;
+.toolbar button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
 }
 
-.read-the-docs {
-  color: #888;
+.toolbar button:hover {
+  background: #f0f0f0;
+}
+
+.toolbar button.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sidebar {
+  position: fixed;
+  top: 60px;
+  right: 0;
+  width: 300px;
+  height: calc(100vh - 60px);
+  background: #fff;
+  border-left: 1px solid #ddd;
+  overflow-y: auto;
+  z-index: 999;
+}
+
+.sidebar h3 {
+  padding: 15px;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  background: #f8f9fa;
+}
+
+.sidebar-content {
+  padding: 15px;
+}
+
+.zone-item, .row-item {
+  padding: 10px;
+  margin: 5px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.zone-item:hover, .row-item:hover {
+  background: #f0f0f0;
+}
+
+.zone-item.selected, .row-item.selected {
+  background: #e3f2fd;
+  border-color: #2196f3;
+}
+
+.canvas-container {
+  margin-top: 60px;
+  margin-right: 300px;
+  height: calc(100vh - 60px);
+  width: calc(100vw - 300px);
+  position: relative;
+  background: #fafafa;
+}
+
+.seat-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1001;
+}
+
+.seat-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.8);
+}
+
+.mode-indicator {
+  margin-left: auto;
+  padding: 8px 16px;
+  background: #28a745;
+  color: white;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.mode-indicator.view {
+  background: #6c757d;
+}
+
+.file-input {
+  display: none;
+}
+
+.strategy-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 20px;
+}
+
+.strategy-selector label {
+  font-weight: bold;
+  color: #333;
+}
+
+.strategy-selector select {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.strategy-selector select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
