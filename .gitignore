@@ -83,7 +83,7 @@ appsettings.*.json
 # Keep .env files specific to each service
 # Ignore global or sensitive env files
 **/.env
-
+**/swagger.json
 # TypeScript
 **/*.tsbuildinfo
 
