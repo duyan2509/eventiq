@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Row, Col, Typography, Button, Space } from 'antd';
 import { CalendarOutlined, TeamOutlined, TrophyOutlined, StarOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import CreateOrgModal from '../components/Auth/CreateOrgModal';
 import { organizationAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,7 +35,8 @@ const Home = () => {
 
   const [orgModalVisible, setOrgModalVisible] = React.useState(false);
   const { user, loading, login, setToken } = useAuth();
-  const { warning,info, contextHolder } = useMessage();
+  const { warning, info, contextHolder } = useMessage();
+  const navigate = useNavigate();
 
   const hasOrgRole = user && user.roles && (Array.isArray(user.roles) ? user.roles.includes('Org') : user.roles === 'Org');
 
@@ -44,7 +46,7 @@ const Home = () => {
       setOrgModalVisible(true);
       return;
     }
-    // ...logic tạo event...
+    navigate('/create-event');
   };
 
   const handleOrgSuccess = (jwt) => {
