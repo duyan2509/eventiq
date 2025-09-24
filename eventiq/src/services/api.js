@@ -86,6 +86,13 @@ export const organizationAPI = {
   getMyOrganizations: async () => {
     const response = await api.get('/organization/my-organization');
     return response.data;
+  },
+
+  getOrgEvents: async (orgId, page = 1, pageSize = 10) => {
+    const response = await api.get(`/organization/${orgId}/events`, {
+      params: { page, pageSize }
+    });
+    return response.data;
   }
 };
 

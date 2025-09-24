@@ -21,4 +21,9 @@ public class OrganizationRepository: GenericRepository<Organization>, IOrganizat
     {
         return await _dbSet.Where(org => org.UserId.Equals(userId.ToString())).CountAsync();
     }
+
+    public async Task<Organization?> GetByUserIdAsync(Guid userId, Guid orgId)
+    {
+        return await _dbSet.Where(org => org.UserId.Equals(userId.ToString()) && org.Id.Equals(orgId)).FirstOrDefaultAsync();
+    }
 }

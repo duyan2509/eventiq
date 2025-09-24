@@ -12,11 +12,16 @@ public class OrganizationController:BaseController
 {
     protected readonly IMapper _mapper;
     protected readonly IOrganizationService _orgService;
+    protected readonly IEventService _eventService;
 
-    public OrganizationController(IMapper mapper, IOrganizationService orgService)
+    public OrganizationController(
+        IMapper mapper, 
+        IOrganizationService orgService,
+        IEventService eventService)
     {
         _mapper = mapper;
         _orgService = orgService;
+        _eventService = eventService;
     }
 
     [HttpPost]
@@ -111,6 +116,31 @@ public class OrganizationController:BaseController
         catch (UnauthorizedAccessException exception)
         {
             return Unauthorized(new { message = exception.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    [HttpGet("{orgId}/events")]
+    public async Task<ActionResult<PaginatedResult<EventPreview>>> GetOrganizationEvents(
+        [FromRoute] Guid orgId,
+        [FromQuery] int page = 1,
+        [FromQuery] int size = 10)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.GetEventsByOrganizationAsync(userId, orgId, page, size);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return Unauthorized(new { message = exception.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (Exception ex)
         {

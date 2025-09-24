@@ -1,7 +1,20 @@
 ﻿using Eventiq.Domain.Entities;
 
 namespace Eventiq.Application.Dtos;
-
+public class EventDetail
+{
+    public Guid Id { get; set; }
+    public required string Banner { get; set; }
+    public required string Name { get; set; }
+    public string? Description { get; set; }
+    public required DateTime Start { get; set; }
+    public required OrganizationDto Organization { get; set; }
+    public required EventAddressDto EventAddress { get; set; }
+    public int BankCode { get; set; }
+    public required string AccountNumber { get; set; }
+    public required string AccountName { get; set; }
+    public required EventStatus Status { get; set; }
+}
 public class EventDto
 {
     public Guid Id { get; set; }
@@ -15,6 +28,16 @@ public class EventDto
     public required string AccountNumber { get; set; }
     public required string AccountName { get; set; }
     public required EventStatus Status { get; set; }
+}
+public class EventPreview
+{
+    public Guid Id { get; set; }
+    public required string Banner { get; set; }
+    public required string Name { get; set; }
+    public required DateTime Start { get; set; }
+    public required OrganizationDto Organization { get; set; }
+    public required EventAddressDto EventAddress { get; set; }
+    public required string Status { get; set; }
 }
 public class CreateEventDto
 {

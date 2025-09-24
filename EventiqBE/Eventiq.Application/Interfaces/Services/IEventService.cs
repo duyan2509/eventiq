@@ -8,9 +8,15 @@ public interface IEventService
     Task<PaymentInformationResponse> UpdateEventPaymentAsync(Guid userId, Guid eventId, UpdatePaymentInformation dto); //put
     Task<UpdateAddressResponse> UpdateEventAddressAsync(Guid userId, Guid eventId, UpdateEventAddressDto dto);  
     Task<EventDto> UpdateEventInfoAsync(Guid userId, Guid eventId, UpdateEventDto dto); 
-    Task<EventDto> GetByIdAsync(Guid id);
+    Task<EventDetail> GetByIdAsync(Guid id);
     Task ValidateEventOwnerAsync(Guid userId, List<Guid> orgIds);
     Task<TicketClassDto> CreateTicketClassAsync(Guid userId, Guid eventId, CreateTicketClassDto dto);
     Task<TicketClassDto> UpdateTicketClassInfoAsync(Guid userId, Guid eventId, Guid ticketClassId, UpdateTicketClassInfoDto dto);
     Task<IEnumerable<TicketClassDto>> GetEventTicketClassesAsync(Guid userId, Guid eventId);
+    Task<IEnumerable<EventItemDto>> GetEventItemAsync(Guid userId, Guid eventId);
+    Task<EventItemDto> CreateEventItemAsync(Guid userId, Guid eventId, CreateEventItemDto dto);
+    Task<EventItemDto> UpdateEventItemAsync(Guid userId, Guid eventId, Guid eventItemId, UpdateEventItemDto dto);
+    Task<EventItemDto> UpdateChartKeyAsync(Guid userId, Guid eventId, Guid eventItemId, EventCharKey dto);
+    Task<bool> DeleteEventItemAsync(Guid userId, Guid eventId, Guid eventItemId);
+    Task<PaginatedResult<EventPreview>> GetEventsByOrganizationAsync(Guid userId, Guid orgId, int page = 1, int pageSize = 10);
 }

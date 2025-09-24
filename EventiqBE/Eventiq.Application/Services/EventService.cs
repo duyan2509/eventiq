@@ -16,8 +16,12 @@ public class EventService:IEventService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEventAddressRepository _eventAddressRepository;
     private readonly IOrganizationRepository  _organizationRepository;
+    private readonly IEventItemRepository _eventItemRepository;
+    private readonly IIdentityService _identityService;
+    private readonly ITicketClassRepository _ticketClassRepository;
 
-    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository)
+
+    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IEventItemRepository eventItemRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository, IOrganizationService organizationService)
     {
         _eventRepository = eventRepository;
         _mapper = mapper;
@@ -25,13 +29,10 @@ public class EventService:IEventService
         _unitOfWork = unitOfWork;
         _eventAddressRepository = eventAddressRepository;
         _organizationRepository = organizationRepository;
+        _eventItemRepository = eventItemRepository;
         _identityService = identityService;
         _ticketClassRepository = ticketClassRepository;
     }
-
-    private readonly IIdentityService _identityService;
-    private readonly ITicketClassRepository _ticketClassRepository;
-   
 
     public async Task<CreateEventResponse> CreateEventInfoAsync(Guid userId, CreateEventDto dto)
     {
@@ -154,12 +155,13 @@ public class EventService:IEventService
         await _eventAddressRepository.UpdateAsync(address);
         return _mapper.Map<UpdateAddressResponse>(address);
     }
-
-
-
-    public Task<EventDto> GetByIdAsync(Guid id)
+    public async Task<EventDetail> GetByIdAsync(Guid id)
     {
-        throw new NotImplementedException();
+        var evnt = await   _eventRepository.GetDetailEventAsync(id);
+        if (evnt == null)
+            throw new KeyNotFoundException("Event not found");
+        return _mapper.Map<EventDetail>(evnt);
+        
     }
 
     public async Task ValidateEventOwnerAsync(Guid userId, List<Guid> orgIds)
@@ -237,5 +239,51 @@ public class EventService:IEventService
         var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
         var result = ticketClasses.Select(ticketClass => _mapper.Map<TicketClassDto>(ticketClass));
         return result;
+    }
+
+    public Task<IEnumerable<EventItemDto>> GetEventItemAsync(Guid userId, Guid eventId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<EventItemDto> CreateEventItemAsync(Guid userId, Guid eventId, CreateEventItemDto dto)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<EventItemDto> UpdateEventItemAsync(Guid userId, Guid eventId, Guid eventItemId, UpdateEventItemDto dto)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<EventItemDto> UpdateChartKeyAsync(Guid userId, Guid eventId, Guid eventItemId, EventCharKey dto)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> DeleteEventItemAsync(Guid userId, Guid eventId, Guid eventItemId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<PaginatedResult<EventPreview>> GetEventsByOrganizationAsync(Guid userId, Guid orgId, int page = 1, int size = 10)
+    {
+        await CheckUserOrganizationAsync(userId,orgId);
+        var evnts = await _eventRepository.GetByOrgAsync(orgId,page,size);
+        var dtos = evnts.Data.Select(evnt => _mapper.Map<EventPreview>(evnt));
+        return new PaginatedResult<EventPreview>
+        {
+            Data = dtos,
+            Page = evnts.Page,
+            Size = evnts.Size,
+            Total = evnts.Total
+        };
+    }
+    public async Task<bool> CheckUserOrganizationAsync(Guid userId, Guid orgId)
+    {
+        var org = await _organizationRepository.GetByUserIdAsync(userId,orgId);
+        if(org==null)
+            throw new UnauthorizedAccessException("Organization not found");
+        return true;
     }
 }

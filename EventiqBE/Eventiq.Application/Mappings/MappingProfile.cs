@@ -16,7 +16,7 @@ public class MappingProfile : Profile
         CreateMap<Organization, CreateOrganizationResponse>();
         CreateMap<Event, EventDto>();
         CreateMap<CreateEventDto, Event>()
-            .ForMember(dest=>dest.Banner, opt=>opt.MapFrom(src=>src.BannerURL));
+            .ForMember(dest => dest.Banner, opt => opt.MapFrom(src => src.BannerURL));
         CreateMap<EventAddressDto, EventAddress>();
         CreateMap<EventAddress, EventAddressDto>();
         CreateMap<Event, CreateEventResponse>();
@@ -26,5 +26,14 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.EventId, opt => opt.MapFrom(src => src.Id));
         CreateMap<TicketClass, TicketClassDto>();
         CreateMap<CreateTicketClassDto, TicketClass>();
+        CreateMap<CreateEventItemDto, EventItem>();
+        CreateMap<UpdateEventItemDto, EventItem>();
+        CreateMap<EventItem, EventItemDto>();
+        CreateMap<Event, EventPreview>()
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+
+        CreateMap<Event, EventDetail>()
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+
     }
 }

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Layout, Input, Button, Space, Dropdown, Avatar } from 'antd';
 import { useMessage } from '../../hooks/useMessage';
-import { SearchOutlined, UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+import { SearchOutlined, UserOutlined, LogoutOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginModal from '../Auth/LoginModal';
 import RegisterModal from '../Auth/RegisterModal';
@@ -10,6 +11,7 @@ const { Header: AntHeader } = Layout;
 const { Search } = Input;
 
 const Header = () => {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { success, error, warning, contextHolder } = useMessage();
   const [loginVisible, setLoginVisible] = useState(false);
@@ -33,6 +35,12 @@ const Header = () => {
       key: 'profile',
       icon: <UserOutlined />,
       label: 'Profile',
+    },
+    {
+      key: 'organizations',
+      icon: <TeamOutlined />,
+      label: 'My Organizations',
+      onClick: () => navigate('/org'),
     },
     {
       key: 'settings',

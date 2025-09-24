@@ -10,5 +10,4 @@ public class EventItem: BaseEntity
     public virtual Event Event { get; set; }
     public string? ChartKey { get; set; }
     public List<Ticket>  Tickets { get; set; } = new List<Ticket>();
-    
 }

@@ -7,4 +7,5 @@ public interface IOrganizationRepository:IGenericRepository<Organization>
 {
     Task<IEnumerable<Organization>> GetMyOrgsAsync(Guid userId);
     Task<int> GetUserOrgCountAsync(Guid userId);
+    Task<Organization?> GetByUserIdAsync(Guid userId, Guid orgId);
 }

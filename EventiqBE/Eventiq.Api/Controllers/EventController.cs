@@ -47,14 +47,18 @@ public class EventController:BaseController
         }
     }
     [HttpGet("{eventId}")]
-    public async Task<ActionResult<EventDto>> GetEventById([FromRoute] Guid eventId)
+    public async Task<ActionResult<EventDetail>> GetEventById([FromRoute] Guid eventId)
     {
         try
         {
             var response = await _eventService.GetByIdAsync(eventId);
             return Ok(response);
         }
-        catch (InvalidOperationException ex)
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }
@@ -160,17 +164,87 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
+    [Authorize(Policy = "Event.Create")]
     [HttpPost("{eventId}/event-item")]
-    public async Task<ActionResult> PostEventItem([FromRoute]Guid eventId)
+    public async Task<ActionResult<EventItemDto>>PostEventItem([FromRoute]Guid eventId, [FromBody] CreateEventItemDto dto)
     {
         try
         {
-            return Ok();
+            if (!ModelState.IsValid && !dto.CheckValidTime())
+                return BadRequest(ModelState);
+            var userId = GetCurrentUserId();
+            var response = await _eventService.CreateEventItemAsync(userId, eventId, dto);
+            return Ok(response);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }
     }
-    
+    [HttpGet("{eventId}/event-item")]
+    public async Task<ActionResult<IEnumerable<EventItemDto>>> GetEventItems([FromRoute]Guid eventId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.GetEventItemAsync(userId, eventId);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    [Authorize(Policy = "Event.Update")]
+    [HttpPatch("{eventId}/event-item/{eventItemId}")]
+    public async Task<ActionResult<TicketClassDto>> PatchEventItem([FromRoute]Guid eventId, [FromRoute]Guid eventItemId,UpdateEventItemDto dto)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.UpdateEventItemAsync(userId, eventId,eventItemId, dto);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    [Authorize(Policy = "Event.Update")]
+    [HttpPut("{eventId}/event-item/{eventItemId}/chart-key")]
+    public async Task<ActionResult<TicketClassDto>> PutEventItemChartKey([FromRoute]Guid eventId, [FromRoute]Guid eventItemId,EventCharKey dto)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.UpdateChartKeyAsync(userId, eventId,eventItemId, dto);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    [HttpDelete("{eventId}/event-item/{eventItemId}")]
+    public async Task<ActionResult<bool>> DeleteOrganization([FromRoute]Guid eventId, [FromRoute]Guid eventItemId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.DeleteEventItemAsync(userId, eventId, eventItemId);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return Unauthorized(new { message = exception.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new {message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

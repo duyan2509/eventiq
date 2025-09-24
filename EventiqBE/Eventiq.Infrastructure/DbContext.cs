@@ -51,6 +51,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<TicketClass>()
             .HasIndex(tc => tc.Name)
             .IsUnique();
+        modelBuilder.Entity<EventItem>()
+            .HasIndex(ei => new
+            {
+                ei.Name,
+                ei.EventId,
+            }).IsUnique();
         
         // Global query filter for soft delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
