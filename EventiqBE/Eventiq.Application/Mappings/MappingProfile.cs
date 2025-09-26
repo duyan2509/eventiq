@@ -29,6 +29,7 @@ public class MappingProfile : Profile
         CreateMap<CreateEventItemDto, EventItem>();
         CreateMap<UpdateEventItemDto, EventItem>();
         CreateMap<EventItem, EventItemDto>();
+        CreateMap<CreateEventItemDto, EventItem>();
         CreateMap<Event, EventPreview>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
 

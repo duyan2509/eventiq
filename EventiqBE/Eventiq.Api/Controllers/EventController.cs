@@ -176,6 +176,10 @@ public class EventController:BaseController
             var response = await _eventService.CreateEventItemAsync(userId, eventId, dto);
             return Ok(response);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
@@ -187,7 +191,7 @@ public class EventController:BaseController
         try
         {
             var userId = GetCurrentUserId();
-            var response = await _eventService.GetEventItemAsync(userId, eventId);
+            var response = await _eventService.GetEventItemAsync(eventId);
             return Ok(response);
         }
         catch (Exception ex)
@@ -205,6 +209,10 @@ public class EventController:BaseController
             var response = await _eventService.UpdateEventItemAsync(userId, eventId,eventItemId, dto);
             return Ok(response);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
@@ -219,6 +227,10 @@ public class EventController:BaseController
             var userId = GetCurrentUserId();
             var response = await _eventService.UpdateChartKeyAsync(userId, eventId,eventItemId, dto);
             return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
         }
         catch (Exception ex)
         {

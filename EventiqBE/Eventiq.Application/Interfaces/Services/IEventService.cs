@@ -13,7 +13,7 @@ public interface IEventService
     Task<TicketClassDto> CreateTicketClassAsync(Guid userId, Guid eventId, CreateTicketClassDto dto);
     Task<TicketClassDto> UpdateTicketClassInfoAsync(Guid userId, Guid eventId, Guid ticketClassId, UpdateTicketClassInfoDto dto);
     Task<IEnumerable<TicketClassDto>> GetEventTicketClassesAsync(Guid userId, Guid eventId);
-    Task<IEnumerable<EventItemDto>> GetEventItemAsync(Guid userId, Guid eventId);
+    Task<IEnumerable<EventItemDto>> GetEventItemAsync(Guid eventId);
     Task<EventItemDto> CreateEventItemAsync(Guid userId, Guid eventId, CreateEventItemDto dto);
     Task<EventItemDto> UpdateEventItemAsync(Guid userId, Guid eventId, Guid eventItemId, UpdateEventItemDto dto);
     Task<EventItemDto> UpdateChartKeyAsync(Guid userId, Guid eventId, Guid eventItemId, EventCharKey dto);

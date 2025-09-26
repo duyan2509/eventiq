@@ -241,29 +241,118 @@ public class EventService:IEventService
         return result;
     }
 
-    public Task<IEnumerable<EventItemDto>> GetEventItemAsync(Guid userId, Guid eventId)
+    public async Task<IEnumerable<EventItemDto>> GetEventItemAsync(Guid eventId)
     {
-        throw new NotImplementedException();
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        var evntItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
+        var dtos = evntItems.Select(eventItem => _mapper.Map<EventItemDto>(eventItem));
+        return dtos;
+        
     }
 
-    public Task<EventItemDto> CreateEventItemAsync(Guid userId, Guid eventId, CreateEventItemDto dto)
+    public async Task<EventItemDto> CreateEventItemAsync(Guid userId, Guid eventId, CreateEventItemDto dto)
     {
-        throw new NotImplementedException();
+        if(dto.Start <  DateTime.UtcNow.AddDays(1))
+            throw new Exception($"Start date must be after submit date at least 1 day");
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var evntItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
+        foreach (var evntItem in evntItems)
+        {
+            if ((evntItem.Start <= dto.Start && dto.End <= evntItem.End)
+            ||(dto.Start <= evntItem.Start && dto.End <= evntItem.End)
+            || (evntItem.Start <= dto.Start && evntItem.End <= dto.End))
+                throw new Exception($"Event item is overlapped with {evntItem.Name} at [{evntItem.Start} and {evntItem.End}]");
+        }
+        var eventItem = _mapper.Map<EventItem>(dto); 
+        eventItem.EventId = eventId;
+        await _eventItemRepository.AddAsync(eventItem);
+        return _mapper.Map<EventItemDto>(eventItem);
     }
 
-    public Task<EventItemDto> UpdateEventItemAsync(Guid userId, Guid eventId, Guid eventItemId, UpdateEventItemDto dto)
+    public async Task<EventItemDto> UpdateEventItemAsync(Guid userId, Guid eventId, Guid eventItemId, UpdateEventItemDto dto)
     {
-        throw new NotImplementedException();
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var eventItem = await _eventItemRepository.GetByIdAsync(eventItemId);
+        if(eventItem == null)
+            throw new Exception("Event not found");
+
+        try
+        {
+            await _unitOfWork.BeginTransactionAsync();
+            if (dto.Start != null || dto.End != null)
+            {
+                var evntItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
+                if(dto.Start == null)
+                    dto.Start = eventItem.Start;
+                if(dto.End == null)
+                    dto.End = eventItem.End;
+                foreach (var evntItem in evntItems)
+                {
+                    if (evntItem.Id == eventItem.Id)
+                    {
+                        evntItem.Start = eventItem.Start;
+                    }
+                    else if ((evntItem.Start <= dto.Start && dto.End <= evntItem.End)
+                        ||(dto.Start <= evntItem.Start && dto.End <= evntItem.End)
+                        || (evntItem.Start <= dto.Start && evntItem.End <= dto.End))
+                        throw new Exception($"Event item is overlapped with {evntItem.Name} at [{evntItem.Start} and {evntItem.End}]");
+                }
+                eventItem.Start = dto.Start.Value;
+                eventItem.Start = dto.Start.Value;
+            }
+
+            if (dto.Name != null)
+                eventItem.Name = dto.Name;
+            if (dto.Description != null)
+                eventItem.Description = dto.Description;
+
+            await _eventItemRepository.UpdateAsync(eventItem);
+            await _unitOfWork.CommitAsync();
+            return _mapper.Map<EventItemDto>(dto);
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+        
     }
 
-    public Task<EventItemDto> UpdateChartKeyAsync(Guid userId, Guid eventId, Guid eventItemId, EventCharKey dto)
+    public async Task<EventItemDto> UpdateChartKeyAsync(Guid userId, Guid eventId, Guid eventItemId, EventCharKey dto)
     {
-        throw new NotImplementedException();
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var eventItem = await _eventItemRepository.GetByIdAsync(eventItemId);
+        if (eventItem == null)
+            throw new Exception("Event not found");
+        eventItem.ChartKey = dto.ChartKey;
+        await _eventItemRepository.UpdateAsync(eventItem);
+        return _mapper.Map<EventItemDto>(eventItem);
     }
 
-    public Task<bool> DeleteEventItemAsync(Guid userId, Guid eventId, Guid eventItemId)
+    public async Task<bool> DeleteEventItemAsync(Guid userId, Guid eventId, Guid eventItemId)
     {
-        throw new NotImplementedException();
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        if(evnt.Status==EventStatus.Published || evnt.Status==EventStatus.Pending)
+            throw new Exception("Only delete event item of draft event");
+        var eventItem = _eventItemRepository.GetByIdAsync(eventItemId);
+        if(eventItem == null)
+            throw new Exception("Event item not found");
+        await _eventItemRepository.HardDeleteAsync(eventId);
+        return true;
     }
 
     public async Task<PaginatedResult<EventPreview>> GetEventsByOrganizationAsync(Guid userId, Guid orgId, int page = 1, int size = 10)
