@@ -8,6 +8,7 @@ public class EventItem: BaseEntity
     public DateTime Start { get; set; }
     public Guid EventId { get; set; }
     public virtual Event Event { get; set; }
-    public string? ChartKey { get; set; }
+    public virtual Chart Chart { get; set; }
+    public Guid ChartId { get; set; }
     public List<Ticket>  Tickets { get; set; } = new List<Ticket>();
 }

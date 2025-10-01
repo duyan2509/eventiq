@@ -10,7 +10,7 @@ public class EventDetail
     public required DateTime Start { get; set; }
     public required OrganizationDto Organization { get; set; }
     public required EventAddressDto EventAddress { get; set; }
-    public int BankCode { get; set; }
+    public string BankCode { get; set; }
     public required string AccountNumber { get; set; }
     public required string AccountName { get; set; }
     public required EventStatus Status { get; set; }
@@ -24,7 +24,7 @@ public class EventDto
     public required DateTime Start { get; set; }
     public required OrganizationDto Organization { get; set; }
     public required EventAddressDto EventAddress { get; set; }
-    public int BankCode { get; set; }
+    public string BankCode { get; set; }
     public required string AccountNumber { get; set; }
     public required string AccountName { get; set; }
     public required EventStatus Status { get; set; }
@@ -91,7 +91,7 @@ public class UpdateAddressResponse
 
 public class UpdatePaymentInformation
 {
-    public int BankCode { get; set; }
+    public required string BankCode { get; set; }
     public required string AccountNumber { get; set; }
     public required string AccountName { get; set; }
 }
@@ -99,7 +99,7 @@ public class UpdatePaymentInformation
 public class PaymentInformationResponse
 {
     public Guid EventId { get; set; }
-    public int BankCode { get; set; }
+    public string BankCode { get; set; }
     public required string AccountNumber { get; set; }
     public required string AccountName { get; set; }
 }

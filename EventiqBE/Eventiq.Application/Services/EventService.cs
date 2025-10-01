@@ -16,12 +16,11 @@ public class EventService:IEventService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEventAddressRepository _eventAddressRepository;
     private readonly IOrganizationRepository  _organizationRepository;
+    private readonly IChartRepository _chartRepository;
+
     private readonly IEventItemRepository _eventItemRepository;
-    private readonly IIdentityService _identityService;
-    private readonly ITicketClassRepository _ticketClassRepository;
 
-
-    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IEventItemRepository eventItemRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository, IOrganizationService organizationService)
+    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IChartRepository chartRepository, IEventItemRepository eventItemRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository, ISeatService seatService)
     {
         _eventRepository = eventRepository;
         _mapper = mapper;
@@ -29,10 +28,18 @@ public class EventService:IEventService
         _unitOfWork = unitOfWork;
         _eventAddressRepository = eventAddressRepository;
         _organizationRepository = organizationRepository;
+        _chartRepository = chartRepository;
         _eventItemRepository = eventItemRepository;
         _identityService = identityService;
         _ticketClassRepository = ticketClassRepository;
+        _seatService = seatService;
     }
+
+    private readonly IIdentityService _identityService;
+    private readonly ITicketClassRepository _ticketClassRepository;
+    private readonly ISeatService _seatService;
+
+
 
     public async Task<CreateEventResponse> CreateEventInfoAsync(Guid userId, CreateEventDto dto)
     {
@@ -181,6 +188,7 @@ public class EventService:IEventService
             throw new Exception("Event not found");
         await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
         var ticketClass = _mapper.Map<TicketClass>(dto);
+        ticketClass.EventId= evnt.Id;
         await _ticketClassRepository.AddAsync(ticketClass);
         return  _mapper.Map<TicketClassDto>(ticketClass);
     }
@@ -220,12 +228,12 @@ public class EventService:IEventService
             else throw new Exception($"Sale start must be before sale end {ticketClass.SaleEnd}");
         } 
         
-        if(string.IsNullOrEmpty(dto.Name))
-            dto.Name = ticketClass.Name;
+        if(!string.IsNullOrEmpty(dto.Name))
+            ticketClass.Name = dto.Name;
         if(dto.Price!=null)
-            dto.Price = ticketClass.Price;
+            ticketClass.Price = dto.Price.Value;
         if(dto.MaxPerUser!=null)
-            dto.MaxPerUser = ticketClass.MaxPerUser;
+            ticketClass.MaxPerUser = dto.MaxPerUser.Value;
         await _ticketClassRepository.UpdateAsync(ticketClass);
         return _mapper.Map<TicketClassDto>(ticketClass);
     }
@@ -326,19 +334,6 @@ public class EventService:IEventService
         
     }
 
-    public async Task<EventItemDto> UpdateChartKeyAsync(Guid userId, Guid eventId, Guid eventItemId, EventCharKey dto)
-    {
-        var evnt = await _eventRepository.GetByIdAsync(eventId);
-        if (evnt == null)
-            throw new Exception("Event not found");
-        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
-        var eventItem = await _eventItemRepository.GetByIdAsync(eventItemId);
-        if (eventItem == null)
-            throw new Exception("Event not found");
-        eventItem.ChartKey = dto.ChartKey;
-        await _eventItemRepository.UpdateAsync(eventItem);
-        return _mapper.Map<EventItemDto>(eventItem);
-    }
 
     public async Task<bool> DeleteEventItemAsync(Guid userId, Guid eventId, Guid eventItemId)
     {
@@ -368,6 +363,63 @@ public class EventService:IEventService
             Total = evnts.Total
         };
     }
+
+    public async Task<ChartDto> CreateChartAsync(Guid userId, Guid eventId, CreateChartDto dto)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
+        if (ticketClasses == null || !ticketClasses.Any())
+            throw new Exception("Ticket class not found");
+        var chart = _mapper.Map<Chart>(dto);
+        chart.EventId= evnt.Id;
+        chart.Key = await _seatService.CreateChartAsync(ticketClasses);
+        await _chartRepository.AddAsync(chart);
+        return  _mapper.Map<ChartDto>(chart);
+    }
+
+    public async Task<ChartDto> UpdateChartAsync(Guid userId, Guid eventId, Guid chartId, UpdateChartDto dto)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var chart = await _chartRepository.GetByIdAsync(chartId);
+        if (chart == null)
+            throw new Exception("Chart not found");
+        chart.Name = dto.Name;
+        await _chartRepository.UpdateAsync(chart);
+        return  _mapper.Map<ChartDto>(chart);
+    }
+
+    public async Task<IEnumerable<ChartDto>> GetEventChartAsync(Guid userId, Guid eventId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+
+        var charts = await _chartRepository.GetByEventItAsync(eventId);
+        return charts.Select(chart => _mapper.Map<ChartDto>(chart));
+    }
+
+    public async Task<bool> DeleteChartAsync(Guid userId, Guid eventId, Guid chartId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var chart = await _chartRepository.GetDetailChartByIdAsync(chartId);
+        if(chart==null)
+            throw new Exception("Chart not found");
+        if (chart.EventItems.Any())
+            throw new Exception("Cannot delete chart because it is used in at least one showtime");
+        await _chartRepository.HardDeleteAsync(chartId);
+        return true;
+    }
+
     public async Task<bool> CheckUserOrganizationAsync(Guid userId, Guid orgId)
     {
         var org = await _organizationRepository.GetByUserIdAsync(userId,orgId);

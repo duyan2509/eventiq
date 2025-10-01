@@ -24,7 +24,9 @@ public static class DependencyInjection
                 config["Mailtrap:Password"]
             ));
 
-        services.AddScoped<ISeatService, SeatsIoService>();
+        services.AddScoped<ISeatService>(seatService => new SeatsIoService
+        (
+            config["SeatsIo:SecretKey"]));
         return services;
     }
     public static IServiceCollection AddPersistence(this IServiceCollection services,IConfiguration config)
@@ -34,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IEventAddressRepository, EventAddressRepository>();
         services.AddScoped<ITicketClassRepository, TicketClassRepository>();
         services.AddScoped<IEventItemRepository, EventItemRepository>();
+        services.AddScoped<IChartRepository, ChartRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         return services;
     }

@@ -3,6 +3,7 @@ using System;
 using Eventiq.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Eventiq.Migrations.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251001134616_Chart")]
+    partial class Chart
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -587,7 +590,7 @@ namespace Eventiq.Migrations.Migrations
             modelBuilder.Entity("Eventiq.Domain.Entities.EventItem", b =>
                 {
                     b.HasOne("Eventiq.Domain.Entities.Chart", "Chart")
-                        .WithMany("EventItems")
+                        .WithMany()
                         .HasForeignKey("ChartId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -697,11 +700,6 @@ namespace Eventiq.Migrations.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.Chart", b =>
-                {
-                    b.Navigation("EventItems");
                 });
 
             modelBuilder.Entity("Eventiq.Domain.Entities.Event", b =>

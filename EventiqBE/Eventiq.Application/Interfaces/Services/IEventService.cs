@@ -16,7 +16,11 @@ public interface IEventService
     Task<IEnumerable<EventItemDto>> GetEventItemAsync(Guid eventId);
     Task<EventItemDto> CreateEventItemAsync(Guid userId, Guid eventId, CreateEventItemDto dto);
     Task<EventItemDto> UpdateEventItemAsync(Guid userId, Guid eventId, Guid eventItemId, UpdateEventItemDto dto);
-    Task<EventItemDto> UpdateChartKeyAsync(Guid userId, Guid eventId, Guid eventItemId, EventCharKey dto);
     Task<bool> DeleteEventItemAsync(Guid userId, Guid eventId, Guid eventItemId);
     Task<PaginatedResult<EventPreview>> GetEventsByOrganizationAsync(Guid userId, Guid orgId, int page = 1, int pageSize = 10);
+    Task<ChartDto> CreateChartAsync(Guid userId, Guid eventId, CreateChartDto dto);
+    Task<ChartDto> UpdateChartAsync(Guid userId, Guid eventId, Guid chartId, UpdateChartDto dto);
+    Task<IEnumerable<ChartDto>> GetEventChartAsync(Guid userId, Guid eventId);
+    Task<bool> DeleteChartAsync(Guid userId, Guid eventId, Guid chartId);
 }
+

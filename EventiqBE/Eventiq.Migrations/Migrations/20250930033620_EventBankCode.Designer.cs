@@ -3,6 +3,7 @@ using System;
 using Eventiq.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Eventiq.Migrations.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250930033620_EventBankCode")]
+    partial class EventBankCode
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,45 +25,6 @@ namespace Eventiq.Migrations.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.Chart", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId");
-
-                    b.HasIndex("Name", "EventId")
-                        .IsUnique();
-
-                    b.ToTable("Charts", "identity");
-                });
 
             modelBuilder.Entity("Eventiq.Domain.Entities.Event", b =>
                 {
@@ -179,8 +143,8 @@ namespace Eventiq.Migrations.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ChartId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("ChartKey")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -211,8 +175,6 @@ namespace Eventiq.Migrations.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ChartId");
 
                     b.HasIndex("EventId");
 
@@ -349,7 +311,7 @@ namespace Eventiq.Migrations.Migrations
 
                     b.HasIndex("EventId");
 
-                    b.HasIndex("Name", "EventId")
+                    b.HasIndex("Name")
                         .IsUnique();
 
                     b.ToTable("TicketClasses", "identity");
@@ -551,17 +513,6 @@ namespace Eventiq.Migrations.Migrations
                     b.ToTable("AspNetUserTokens", "identity");
                 });
 
-            modelBuilder.Entity("Eventiq.Domain.Entities.Chart", b =>
-                {
-                    b.HasOne("Eventiq.Domain.Entities.Event", "Event")
-                        .WithMany("Charts")
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Event");
-                });
-
             modelBuilder.Entity("Eventiq.Domain.Entities.Event", b =>
                 {
                     b.HasOne("Eventiq.Domain.Entities.Organization", "Organization")
@@ -586,19 +537,11 @@ namespace Eventiq.Migrations.Migrations
 
             modelBuilder.Entity("Eventiq.Domain.Entities.EventItem", b =>
                 {
-                    b.HasOne("Eventiq.Domain.Entities.Chart", "Chart")
-                        .WithMany("EventItems")
-                        .HasForeignKey("ChartId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Eventiq.Domain.Entities.Event", "Event")
                         .WithMany("EventItem")
                         .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Chart");
 
                     b.Navigation("Event");
                 });
@@ -699,15 +642,8 @@ namespace Eventiq.Migrations.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Eventiq.Domain.Entities.Chart", b =>
-                {
-                    b.Navigation("EventItems");
-                });
-
             modelBuilder.Entity("Eventiq.Domain.Entities.Event", b =>
                 {
-                    b.Navigation("Charts");
-
                     b.Navigation("EventAddress")
                         .IsRequired();
 

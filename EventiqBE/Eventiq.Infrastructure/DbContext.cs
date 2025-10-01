@@ -16,7 +16,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     private DbSet<EventItem> EventItem { get; set; }
     private DbSet<Ticket> Tickets { get; set; }
     private DbSet<TicketClass> TicketClasses { get; set; }
-
+    private DbSet<Chart> Charts { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -49,7 +49,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 });
 
         modelBuilder.Entity<TicketClass>()
-            .HasIndex(tc => tc.Name)
+            .HasIndex(tc => new
+            {
+                tc.Name,
+                tc.EventId
+            })
             .IsUnique();
         modelBuilder.Entity<EventItem>()
             .HasIndex(ei => new
@@ -57,7 +61,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 ei.Name,
                 ei.EventId,
             }).IsUnique();
-        
+        modelBuilder.Entity<Chart>()
+            .HasIndex(ei => new
+            {
+                ei.Name,
+                ei.EventId,
+            }).IsUnique();
         // Global query filter for soft delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {

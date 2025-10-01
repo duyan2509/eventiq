@@ -35,6 +35,7 @@ public class MappingProfile : Profile
 
         CreateMap<Event, EventDetail>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
-
+        CreateMap<Chart, ChartDto>();
+        CreateMap<CreateChartDto, Chart>();
     }
 }

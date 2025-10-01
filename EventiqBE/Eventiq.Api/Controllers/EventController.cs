@@ -199,7 +199,7 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
-    [Authorize(Policy = "Event.Update")]
+    [Authorize(Policy = "Event.Update")]    
     [HttpPatch("{eventId}/event-item/{eventItemId}")]
     public async Task<ActionResult<TicketClassDto>> PatchEventItem([FromRoute]Guid eventId, [FromRoute]Guid eventItemId,UpdateEventItemDto dto)
     {
@@ -218,27 +218,9 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
-    [Authorize(Policy = "Event.Update")]
-    [HttpPut("{eventId}/event-item/{eventItemId}/chart-key")]
-    public async Task<ActionResult<TicketClassDto>> PutEventItemChartKey([FromRoute]Guid eventId, [FromRoute]Guid eventItemId,EventCharKey dto)
-    {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var response = await _eventService.UpdateChartKeyAsync(userId, eventId,eventItemId, dto);
-            return Ok(response);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Unauthorized(new { message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
+    [Authorize(Policy = "Event.Update")]    
     [HttpDelete("{eventId}/event-item/{eventItemId}")]
-    public async Task<ActionResult<bool>> DeleteOrganization([FromRoute]Guid eventId, [FromRoute]Guid eventItemId)
+    public async Task<ActionResult<bool>> DeleteEventItem([FromRoute]Guid eventId, [FromRoute]Guid eventItemId)
     {
         try
         {
@@ -253,6 +235,90 @@ public class EventController:BaseController
         catch (KeyNotFoundException ex)
         {
             return NotFound(new {message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "Event.Create")]
+    [HttpPost("{eventId}/charts")]
+    public async Task<ActionResult<ChartDto>> PostChart([FromRoute] Guid eventId,
+        [FromBody] CreateChartDto dto)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var userId = GetCurrentUserId();
+            var response = await _eventService.CreateChartAsync(userId, eventId, dto);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    [Authorize(Policy = "Event.Update")]
+    [HttpPut("{eventId}/charts/{chartId}")]
+    public async Task<ActionResult<ChartDto>> UpdateChart([FromRoute] Guid eventId, 
+        [FromRoute] Guid chartId,
+        [FromBody] UpdateChartDto dto)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var userId = GetCurrentUserId();
+            var response = await _eventService.UpdateChartAsync(userId, eventId,chartId, dto);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    [HttpGet("{eventId}/charts")]
+    public async Task<ActionResult<IEnumerable<ChartDto>>> GetEventCharts([FromRoute] Guid eventId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.GetEventChartAsync(userId,eventId);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "Event.Update")]
+    [HttpDelete("{eventId}/charts/{chartId}")]
+    public async Task<ActionResult<bool>> DeleteChart([FromRoute] Guid eventId, [FromRoute] Guid chartId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.DeleteChartAsync(userId, eventId, chartId);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return Unauthorized(new { message = exception.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (Exception ex)
         {
