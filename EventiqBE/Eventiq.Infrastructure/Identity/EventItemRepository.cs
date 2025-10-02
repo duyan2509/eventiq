@@ -16,7 +16,15 @@ public class EventItemRepository:GenericRepository<EventItem>, IEventItemReposit
     public async Task<IEnumerable<EventItem>> GetAllByEventIdAsync(Guid eventId)
     {
         return await _dbSet
+            .Include(e=>e.Chart)
             .Where(e => e.EventId == eventId)
             .ToListAsync();
+    }
+
+    public async Task<EventItem?> GetByDetailByIdAsync(Guid id)
+    {
+        return await _dbSet
+            .Include(e => e.Chart)
+            .FirstOrDefaultAsync(e => e.Id == id);
     }
 }

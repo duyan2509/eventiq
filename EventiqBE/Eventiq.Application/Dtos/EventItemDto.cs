@@ -8,7 +8,7 @@ public class EventItemDto
     public string? Description { get; set; }
     public DateTime End { get; set; }
     public DateTime Start { get; set; }
-    public string? ChartKey { get; set; }
+    public ChartDto Chart  { get; set; }
 }
 public class CreateEventItemDto
 {
@@ -16,6 +16,7 @@ public class CreateEventItemDto
     public string? Description { get; set; }
     public DateTime End { get; set; }
     public DateTime Start { get; set; }
+    public required Guid ChartId { get; set; }
 
     public bool CheckValidTime()
     {
@@ -29,6 +30,8 @@ public class UpdateEventItemDto
     public string? Description { get; set; }
     public DateTime? End { get; set; }
     public DateTime? Start { get; set; }
+    public Guid? ChartId { get; set; }
+
 }
 
 public class EventCharKey

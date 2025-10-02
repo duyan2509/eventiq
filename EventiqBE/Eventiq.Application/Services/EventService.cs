@@ -277,6 +277,12 @@ public class EventService:IEventService
                 throw new Exception($"Event item is overlapped with {evntItem.Name} at [{evntItem.Start} and {evntItem.End}]");
         }
         var eventItem = _mapper.Map<EventItem>(dto); 
+        var chart = await _chartRepository.GetByIdAsync(dto.ChartId);
+        if(chart == null)
+            throw new Exception("Chart not found");
+        if(chart.EventId!=eventId)
+            throw new Exception("Chart and event item are not in the same event");
+        eventItem.Chart =  chart;
         eventItem.EventId = eventId;
         await _eventItemRepository.AddAsync(eventItem);
         return _mapper.Map<EventItemDto>(eventItem);
@@ -288,9 +294,9 @@ public class EventService:IEventService
         if (evnt == null)
             throw new Exception("Event not found");
         await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
-        var eventItem = await _eventItemRepository.GetByIdAsync(eventItemId);
+        var eventItem = await _eventItemRepository.GetByDetailByIdAsync(eventItemId);
         if(eventItem == null)
-            throw new Exception("Event not found");
+            throw new Exception("Event item not found");
 
         try
         {
@@ -321,10 +327,18 @@ public class EventService:IEventService
                 eventItem.Name = dto.Name;
             if (dto.Description != null)
                 eventItem.Description = dto.Description;
-
+            if (dto.ChartId != null)
+            {
+                var chart = await _chartRepository.GetByIdAsync(dto.ChartId.Value);
+                if(chart == null)
+                    throw new Exception("Chart not found");
+                if(chart.EventId!=eventItem.EventId)
+                    throw new Exception("Chart and event item are not in the same event");
+                eventItem.Chart =  chart;
+            }
             await _eventItemRepository.UpdateAsync(eventItem);
             await _unitOfWork.CommitAsync();
-            return _mapper.Map<EventItemDto>(dto);
+            return _mapper.Map<EventItemDto>(eventItem);
         }
         catch (Exception ex)
         {

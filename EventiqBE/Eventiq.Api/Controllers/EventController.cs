@@ -170,7 +170,7 @@ public class EventController:BaseController
     {
         try
         {
-            if (!ModelState.IsValid && !dto.CheckValidTime())
+            if (!ModelState.IsValid || !dto.CheckValidTime())
                 return BadRequest(ModelState);
             var userId = GetCurrentUserId();
             var response = await _eventService.CreateEventItemAsync(userId, eventId, dto);
