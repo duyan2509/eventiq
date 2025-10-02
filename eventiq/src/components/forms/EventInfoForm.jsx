@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, Upload, message } from 'antd';
+import { Form, Input, Button, Card, Upload, Modal } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { Editor } from 'draft-js';
 import 'draft-js/dist/Draft.css';
-
+import { useMessage } from '../../hooks/useMessage';
 const styleMap = {
     'BOLD': { fontWeight: 'bold' },
     'ITALIC': { fontStyle: 'italic' },
@@ -20,16 +20,41 @@ const EventInfoForm = ({
     onFinish,
     initialBannerUrl 
 }) => {
-    const [fileList, setFileList] = useState(initialBannerUrl ? [
+    const { error, contextHolder } = useMessage();
+    const [fileList, setFileList] = useState(() => initialBannerUrl ? [
         {
             uid: '-1',
-            name: 'Current banner',
+            name: 'current banner',
             status: 'done',
             url: initialBannerUrl,
+            thumbUrl: initialBannerUrl,
         }
     ] : []);
+    React.useEffect(() => {
+        if (initialBannerUrl) {
+            setFileList([
+                {
+                    uid: '-1',
+                    name: 'current banner',
+                    status: 'done',
+                    url: initialBannerUrl,
+                    thumbUrl: initialBannerUrl,
+                }
+            ]);
+        }
+    }, [initialBannerUrl]);
+    const [previewVisible, setPreviewVisible] = useState(false);
+    const [previewImage, setPreviewImage] = useState('');
+    const [previewTitle, setPreviewTitle] = useState('');
+
+    const handlePreview = async (file) => {
+        setPreviewImage(file.url || file.thumbUrl);
+        setPreviewVisible(true);
+        setPreviewTitle(file.name || 'Image Preview');
+    };
     return (
         <Card id="event-info" className="mb-8">
+            {contextHolder}
             <h2 className="text-xl font-semibold mb-4">Event Information</h2>
             <Form
                 form={form}
@@ -64,17 +89,26 @@ const EventInfoForm = ({
                         beforeUpload={(file) => {
                             const isImage = file.type.startsWith('image/');
                             if (!isImage) {
-                                message.error('You can only upload image files!');
+                                error('You can only upload image files!');
                             }
                             const isLt2M = file.size / 1024 / 1024 < 2;
                             if (!isLt2M) {
-                                message.error('Image must be smaller than 2MB!');
+                                error('Image must be smaller than 2MB!');
                             }
                             return isImage && isLt2M;
                         }}
+                        onPreview={handlePreview}
                     >
                         <Button icon={<UploadOutlined />}>Upload Banner</Button>
                     </Upload>
+                    <Modal
+                        open={previewVisible}
+                        title={previewTitle}
+                        footer={null}
+                        onCancel={() => setPreviewVisible(false)}
+                    >
+                        <img alt="preview" style={{ width: '100%' }} src={previewImage} />
+                    </Modal>
                 </Form.Item>
 
                 <Form.Item

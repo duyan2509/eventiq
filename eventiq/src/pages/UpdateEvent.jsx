@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Button, Anchor, Card } from 'antd';
+import { Form, Button, Anchor, Card, Steps } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { EditorState, RichUtils, convertToRaw, convertFromRaw } from 'draft-js';
 import { useMessage } from '../hooks/useMessage';
-import axios from 'axios';
 import { eventAPI, bankAPI } from '../services/api';
 import EventInfoForm from '../components/forms/EventInfoForm';
 import EventAddressForm from '../components/forms/EventAddressForm';
 import PaymentInfoForm from '../components/forms/PaymentInfoForm';
+import TicketClassManager from '../components/ticket-class/TicketClassManager';
+import SeatMapManager from '../components/SeatMapManager';
+import EventItemManager from '../components/EventItemManager';
 
 const { Link } = Anchor;
 
@@ -23,6 +25,7 @@ const UpdateEvent = () => {
     const [eventForm] = Form.useForm();
     const [addressForm] = Form.useForm();
     const [paymentForm] = Form.useForm();
+    const [currentStep, setCurrentStep] = useState(0);
     const { success, error, warning, info, contextHolder } = useMessage();
     const [loading, setLoading] = useState(false);
     const [event, setEvent] = useState(null);
@@ -41,11 +44,11 @@ const UpdateEvent = () => {
                 setEvent(eventData);
                 eventForm.setFieldsValue({
                     name: eventData.name,
-                    banner: eventData.bannerUrl ? [{
+                    banner: eventData.banner ? [{
                         uid: '-1',
                         name: 'Current banner',
                         status: 'done',
-                        url: eventData.bannerUrl,
+                        url: eventData.banner,
                     }] : [],
                 });
 
@@ -76,6 +79,7 @@ const UpdateEvent = () => {
                     });
                 }
             } catch (err) {
+                console.error(err);
                 error('Failed to load event data');
             }
         };
@@ -192,10 +196,10 @@ const UpdateEvent = () => {
         setLookupLoading(true);
         try {
             const response = await bankAPI.lookupBankAccount(values.bankCode, values.accountNumber);
-            if (response?.data?.accountName) {
-                paymentForm.setFieldsValue({ accountName: response.data.accountName });
+            if (response?.data?.ownerName) {
+                paymentForm.setFieldsValue({ accountName: response.data.ownerName });
             } else {
-                warning('No account information found');
+                error('No account information found');
             }
         } catch (err) {
             error(err.message || 'Failed to lookup account information');
@@ -210,6 +214,7 @@ const UpdateEvent = () => {
             await eventAPI.updateEventPayment(eventId, values);
             success('Payment information updated successfully!');
         } catch (err) {
+
             error(err?.response?.data?.message || 'Failed to update payment information');
         } finally {
             setLoading(false);
@@ -220,76 +225,87 @@ const UpdateEvent = () => {
         <div className="flex">
             {contextHolder}
             <div className="flex-grow max-w-3xl mx-auto py-8 px-4">
-                {/* Bottom Buttons */}
-                <div className="flex space-between space-x-4 mt-8">
-                    <h1 className="text-2xl font-bold mb-6">Update Event</h1>
+                <h1 className="text-2xl font-bold mb-6">Update Event</h1>
+                <Steps
+                    current={currentStep}
+                    items={[
+                        { title: 'Update Information' },
+                        { title: 'Ticket Class' },
+                        { title: 'Seat Map' },
+                        { title: 'Event Item' },
+                        { title: 'Submit' },
+                    ]}
+                    className="mb-8"
+                />
 
-                    <Button onClick={() => navigate(`/org/${orgId}/event/${eventId}/ticket-class`)}>
-                        Class Setting
+                {currentStep === 0 && (
+                    <>
+                        <EventInfoForm
+                            form={eventForm}
+                            loading={loading}
+                            editorState={editorState}
+                            setEditorState={setEditorState}
+                            handleKeyCommand={handleKeyCommand}
+                            onStyleClick={onStyleClick}
+                            onFinish={handleEventSubmit}
+                            initialBannerUrl={event?.banner}
+                        />
+                        <EventAddressForm
+                            form={addressForm}
+                            loading={loading}
+                            provinces={provinces}
+                            communes={communes}
+                            selectedProvince={selectedProvince}
+                            onProvinceChange={setSelectedProvince}
+                            onFinish={handleAddressSubmit}
+                        />
+                        <PaymentInfoForm
+                            form={paymentForm}
+                            loading={loading}
+                            lookupLoading={lookupLoading}
+                            banks={banks}
+                            onLookupClick={handleBankLookup}
+                            onFinish={handlePaymentSubmit}
+                        />
+                    </>
+                )}
+                {currentStep === 1 && (
+                    <TicketClassManager eventId={eventId} />
+                )}
+                {currentStep === 2 && (
+                    <Card className="mb-8">
+                        <SeatMapManager eventId={eventId} orgId={orgId} />
+                    </Card>
+                )}
+                {currentStep === 3 && (
+                    <Card className="mb-8">
+                        <EventItemManager eventId={eventId} orgId={orgId} />
+                    </Card>
+                )}
+                {currentStep === 4 && (
+                    <Card className="mb-8 text-center">
+                        <h2>Submit</h2>
+                        <Button type="primary" size="large">Submit All</Button>
+                    </Card>
+                )}
+
+                <div className="flex justify-between mt-8">
+                    <Button
+                        disabled={currentStep === 0}
+                        onClick={() => setCurrentStep((prev) => prev - 1)}
+                    >
+                        Previous
                     </Button>
-                    <Button onClick={() => navigate(`/org/${orgId}/event/${eventId}/event-item`)}>
-                        Event Item Setting
-                    </Button>
-                    <Button type="primary">
-                        Submit
+                    <Button
+                        type="primary"
+                        disabled={currentStep === 4}
+                        onClick={() => setCurrentStep((prev) => prev + 1)}
+                    >
+                        Next
                     </Button>
                 </div>
-                <EventInfoForm
-                    form={eventForm}
-                    loading={loading}
-                    editorState={editorState}
-                    setEditorState={setEditorState}
-                    handleKeyCommand={handleKeyCommand}
-                    onStyleClick={onStyleClick}
-                    onFinish={handleEventSubmit}
-                    initialBannerUrl={event?.bannerUrl}
-                />
-
-                <EventAddressForm
-                    form={addressForm}
-                    loading={loading}
-                    provinces={provinces}
-                    communes={communes}
-                    selectedProvince={selectedProvince}
-                    onProvinceChange={setSelectedProvince}
-                    onFinish={handleAddressSubmit}
-                />
-
-                <PaymentInfoForm
-                    form={paymentForm}
-                    loading={loading}
-                    lookupLoading={lookupLoading}
-                    banks={banks}
-                    onLookupClick={handleBankLookup}
-                    onFinish={handlePaymentSubmit}
-                />
-
-
             </div>
-
-            {/* Right Sidebar - Anchor */}
-            <div className="w-48 p-4">
-                <Anchor
-                    offsetTop={80}
-                    items={[
-                        {
-                            key: 'event-info',
-                            href: '#event-info',
-                            title: 'Event Information',
-                        },
-                        {
-                            key: 'event-address',
-                            href: '#event-address',
-                            title: 'Event Address',
-                        },
-                        {
-                            key: 'payment-info',
-                            href: '#payment-info',
-                            title: 'Payment Information',
-                        },
-                    ]}
-                />
-            </div>
+          
         </div>
     );
 };
