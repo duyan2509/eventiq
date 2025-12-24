@@ -89,7 +89,7 @@ const SeatMapManager = ({ eventId, orgId }) => {
                     <Button
                         type="primary"
                         onClick={() => {
-                            window.open(`/org/${orgId}/event/${eventId}/chart/${record.id}`, '_blank');
+                            window.open(`/org/${orgId}/event/${eventId}/seat-map/${record.id}`, '_blank');
                         }}
                     >
                         Seat Map Setup

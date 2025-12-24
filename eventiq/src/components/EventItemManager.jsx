@@ -139,7 +139,7 @@ const EventItemManager = ({ eventId, orgId }) => {
                     <Button
                         type="primary"
                         onClick={() => {
-                            window.open(`/org/${orgId}/event/${eventId}/chart/${record.chart.id}`, '_blank');
+                            window.open(`/org/${orgId}/event/${eventId}/seat-map/${record.chart.id}`, '_blank');
                         }}
                     >
                         Seat Map Setup
