@@ -20,7 +20,7 @@ public class EventService:IEventService
 
     private readonly IEventItemRepository _eventItemRepository;
 
-    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IChartRepository chartRepository, IEventItemRepository eventItemRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository, ISeatService seatService)
+    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IChartRepository chartRepository, IEventItemRepository eventItemRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository, ISeatService seatService, IEventSeatRepository eventSeatRepository, IEventSeatStateRepository eventSeatStateRepository, IEventApprovalHistoryRepository eventApprovalHistoryRepository, IMessageQueueService messageQueueService)
     {
         _eventRepository = eventRepository;
         _mapper = mapper;
@@ -33,11 +33,19 @@ public class EventService:IEventService
         _identityService = identityService;
         _ticketClassRepository = ticketClassRepository;
         _seatService = seatService;
+        _eventSeatRepository = eventSeatRepository;
+        _eventSeatStateRepository = eventSeatStateRepository;
+        _eventApprovalHistoryRepository = eventApprovalHistoryRepository;
+        _messageQueueService = messageQueueService;
     }
 
     private readonly IIdentityService _identityService;
     private readonly ITicketClassRepository _ticketClassRepository;
     private readonly ISeatService _seatService;
+    private readonly IEventSeatRepository _eventSeatRepository;
+    private readonly IEventSeatStateRepository _eventSeatStateRepository;
+    private readonly IEventApprovalHistoryRepository _eventApprovalHistoryRepository;
+    private readonly IMessageQueueService _messageQueueService;
 
 
 
@@ -408,7 +416,7 @@ public class EventService:IEventService
         return  _mapper.Map<ChartDto>(chart);
     }
 
-    public async Task<IEnumerable<ChartDto>> GetEventChartAsync(Guid userId, Guid eventId)
+    public async Task<IEnumerable<ChartDto>> GetEventChartsAsync(Guid userId, Guid eventId)
     {
         var evnt = await _eventRepository.GetByIdAsync(eventId);
         if (evnt == null)
@@ -417,6 +425,18 @@ public class EventService:IEventService
 
         var charts = await _chartRepository.GetByEventItAsync(eventId);
         return charts.Select(chart => _mapper.Map<ChartDto>(chart));
+    }
+
+    public async Task<ChartDto> GetEventChartAsync(Guid userId, Guid eventId, Guid chartId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+        var chart = await _chartRepository.GetByIdAsync(chartId);
+        if (chart == null)
+            throw new Exception("Chart not found");
+        return _mapper.Map<ChartDto>(chart);
     }
 
     public async Task<bool> DeleteChartAsync(Guid userId, Guid eventId, Guid chartId)
@@ -440,5 +460,414 @@ public class EventService:IEventService
         if(org==null)
             throw new UnauthorizedAccessException("Organization not found");
         return true;
+    }
+
+    public async Task<SyncSeatsResponseDto> SyncSeatsAsync(Guid userId, Guid eventId, Guid chartId, IEnumerable<SeatInfoDto> seatsData, string? venueDefinition = null)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+
+        var chart = await _chartRepository.GetByIdAsync(chartId);
+        if (chart == null || chart.EventId != eventId)
+            throw new Exception("Chart not found");
+
+        // Lưu venue definition vào chart nếu có
+        if (!string.IsNullOrEmpty(venueDefinition))
+        {
+            chart.VenueDefinition = venueDefinition;
+            await _chartRepository.UpdateAsync(chart);
+        }
+
+        // Convert seats data from frontend (from Seats.io designer) to EventSeat entities
+        var eventSeats = seatsData.Select(s => new EventSeat
+        {
+            ChartId = chartId,
+            SeatKey = s.SeatKey,
+            Label = s.Label,
+            Section = s.Section,
+            Row = s.Row,
+            Number = s.Number,
+            CategoryKey = s.CategoryKey,
+            ExtraData = s.ExtraData != null ? System.Text.Json.JsonSerializer.Serialize(s.ExtraData) : null
+        }).ToList();
+
+        // Bulk upsert seats
+        var existingSeats = await _eventSeatRepository.GetByChartIdAsync(chartId);
+        var existingSeatKeys = existingSeats.Select(s => s.SeatKey).ToHashSet();
+        
+        int newSeats = eventSeats.Count(s => !existingSeatKeys.Contains(s.SeatKey));
+        
+        await _eventSeatRepository.BulkUpsertAsync(eventSeats);
+        
+        // Create EventSeatState for all event items that use this chart
+        var eventItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
+        var chartEventItems = eventItems.Where(ei => ei.ChartId == chartId).ToList();
+        
+        var updatedSeats = await _eventSeatRepository.GetByChartIdAsync(chartId);
+        
+        foreach (var eventItem in chartEventItems)
+        {
+            foreach (var seat in updatedSeats)
+            {
+                var existingState = await _eventSeatStateRepository.GetByEventItemAndSeatAsync(eventItem.Id, seat.Id);
+                if (existingState == null)
+                {
+                    var newState = new EventSeatState
+                    {
+                        EventItemId = eventItem.Id,
+                        EventSeatId = seat.Id,
+                        Status = SeatStatus.Free
+                    };
+                    await _eventSeatStateRepository.AddAsync(newState);
+                }
+            }
+        }
+
+        return new SyncSeatsResponseDto
+        {
+            TotalSeats = eventSeats.Count,
+            NewSeats = newSeats,
+            UpdatedSeats = eventSeats.Count - newSeats,
+            Success = true
+        };
+    }
+
+    public async Task<SeatMapViewDto> GetSeatMapForViewAsync(Guid userId, Guid eventId, Guid chartId, Guid? eventItemId, string userRole)
+    {
+        var chart = await _chartRepository.GetByIdAsync(chartId);
+        if (chart == null || chart.EventId != eventId)
+            throw new Exception("Chart not found");
+
+        // Check permission: Org can view any, users can only view published events
+        if (userRole != "Org")
+        {
+            var evnt = await _eventRepository.GetByIdAsync(eventId);
+            if (evnt == null || evnt.Status != EventStatus.Published)
+                throw new UnauthorizedAccessException("Event not available");
+        }
+
+        var seats = await _eventSeatRepository.GetByChartIdAsync(chartId);
+        var seatDtos = new List<SeatWithStatusDto>();
+
+        if (eventItemId.HasValue)
+        {
+            // Get seat states for this event item
+            var seatStates = await _eventSeatStateRepository.GetByEventItemIdAsync(eventItemId.Value);
+            var stateMap = seatStates.ToDictionary(s => s.EventSeatId, s => s);
+
+            foreach (var seat in seats)
+            {
+                var state = stateMap.ContainsKey(seat.Id) ? stateMap[seat.Id] : null;
+                seatDtos.Add(new SeatWithStatusDto
+                {
+                    EventSeatId = seat.Id,
+                    SeatKey = seat.SeatKey,
+                    Label = seat.Label,
+                    Section = seat.Section,
+                    Row = seat.Row,
+                    Number = seat.Number,
+                    CategoryKey = seat.CategoryKey,
+                    Status = state?.Status == SeatStatus.Paid ? "paid" : "free",
+                    ExtraData = seat.ExtraData != null ? System.Text.Json.JsonSerializer.Deserialize<object>(seat.ExtraData) : null
+                });
+            }
+        }
+        else
+        {
+            // No event item specified - show all as free (for org config view)
+            foreach (var seat in seats)
+            {
+                seatDtos.Add(new SeatWithStatusDto
+                {
+                    EventSeatId = seat.Id,
+                    SeatKey = seat.SeatKey,
+                    Label = seat.Label,
+                    Section = seat.Section,
+                    Row = seat.Row,
+                    Number = seat.Number,
+                    CategoryKey = seat.CategoryKey,
+                    Status = "free",
+                    ExtraData = seat.ExtraData != null ? System.Text.Json.JsonSerializer.Deserialize<object>(seat.ExtraData) : null
+                });
+            }
+        }
+
+        return new SeatMapViewDto
+        {
+            ChartId = chartId,
+            ChartKey = chart.Key,
+            ChartName = chart.Name,
+            VenueDefinition = chart.VenueDefinition,
+            Seats = seatDtos,
+            IsReadOnly = userRole != "Org" // Only Org can edit
+        };
+    }
+
+    public async Task<EventValidationDto> ValidateEventAsync(Guid userId, Guid eventId)
+    {
+        var evnt = await _eventRepository.GetDetailEventAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+
+        var validation = new EventValidationDto { IsValid = true };
+
+        // Validate event info
+        if (string.IsNullOrWhiteSpace(evnt.Name))
+            validation.Errors.Add("Event name is required");
+
+        if (evnt.EventAddress == null)
+            validation.Errors.Add("Event address is required");
+        else
+        {
+            if (string.IsNullOrWhiteSpace(evnt.EventAddress.Detail))
+                validation.Errors.Add("Event address detail is required");
+        }
+
+        if (string.IsNullOrWhiteSpace(evnt.AccountNumber) || string.IsNullOrWhiteSpace(evnt.AccountName))
+            validation.Errors.Add("Payment information is required");
+
+        // Validate ticket classes
+        var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
+        if (!ticketClasses.Any())
+            validation.Errors.Add("At least one ticket class is required");
+
+        // Validate charts and seats
+        var charts = await _chartRepository.GetByEventItAsync(eventId);
+        if (!charts.Any())
+            validation.Warnings.Add("No seat maps configured");
+        else
+        {
+            foreach (var chart in charts)
+            {
+                var seats = await _eventSeatRepository.GetByChartIdAsync(chart.Id);
+                if (!seats.Any())
+                    validation.Warnings.Add($"Chart '{chart.Name}' has no seats synchronized");
+            }
+        }
+
+        // Validate event items
+        var eventItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
+        if (!eventItems.Any())
+            validation.Errors.Add("At least one event item (showtime) is required");
+
+        validation.IsValid = !validation.Errors.Any();
+        return validation;
+    }
+
+    public async Task<EventSubmissionResponseDto> SubmitEventAsync(Guid userId, Guid eventId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+
+        if (evnt.Status != EventStatus.Draft)
+            throw new Exception($"Cannot submit event with status {evnt.Status}");
+
+        // Validate before submitting
+        var validation = await ValidateEventAsync(userId, eventId);
+        if (!validation.IsValid)
+            throw new Exception($"Event validation failed: {string.Join(", ", validation.Errors)}");
+
+        var previousStatus = evnt.Status;
+        evnt.Status = EventStatus.Pending;
+        await _eventRepository.UpdateAsync(evnt);
+
+        // Create approval history (submitted by org, not approved yet)
+        var history = new EventApprovalHistory
+        {
+            EventId = eventId,
+            PreviousStatus = previousStatus,
+            NewStatus = EventStatus.Pending,
+            Comment = null,
+            ApprovedByUserId = null, // Chưa được approve, chỉ submit
+            ApprovedByUserName = null,
+            ActionDate = DateTime.UtcNow
+        };
+        await _eventApprovalHistoryRepository.AddAsync(history);
+
+        return new EventSubmissionResponseDto
+        {
+            Success = true,
+            Message = "Event submitted successfully for approval",
+            NewStatus = EventStatus.Pending
+        };
+    }
+
+    public async Task<bool> CancelEventAsync(Guid userId, Guid eventId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+
+        if (evnt.Status == EventStatus.Published)
+            throw new Exception("Cannot cancel published event");
+
+        var previousStatus = evnt.Status;
+        evnt.Status = EventStatus.Draft;
+        await _eventRepository.UpdateAsync(evnt);
+
+        // Create approval history (cancelled by org, not an approval action)
+        var history = new EventApprovalHistory
+        {
+            EventId = eventId,
+            PreviousStatus = previousStatus,
+            NewStatus = EventStatus.Draft,
+            Comment = "Event cancelled by organizer",
+            ApprovedByUserId = null, // Không phải approval action
+            ApprovedByUserName = null,
+            ActionDate = DateTime.UtcNow
+        };
+        await _eventApprovalHistoryRepository.AddAsync(history);
+
+        return true;
+    }
+
+    public async Task<IEnumerable<EventApprovalHistoryDto>> GetApprovalHistoryAsync(Guid userId, Guid eventId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+        
+        // Check permission: Org owner can view (Admin check will be in controller)
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+
+        var histories = await _eventApprovalHistoryRepository.GetByEventIdAsync(eventId);
+        return histories.Select(h => new EventApprovalHistoryDto
+        {
+            Id = h.Id,
+            EventId = h.EventId,
+            PreviousStatus = h.PreviousStatus.ToString(),
+            NewStatus = h.NewStatus.ToString(),
+            Comment = h.Comment,
+            ApprovedByUserId = h.ApprovedByUserId,
+            ApprovedByUserName = h.ApprovedByUserName,
+            ActionDate = h.ActionDate
+        });
+    }
+
+    public async Task<IEnumerable<EventApprovalHistoryDto>> GetApprovalHistoryForAdminAsync(Guid eventId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+
+        var histories = await _eventApprovalHistoryRepository.GetByEventIdAsync(eventId);
+        return histories.Select(h => new EventApprovalHistoryDto
+        {
+            Id = h.Id,
+            EventId = h.EventId,
+            PreviousStatus = h.PreviousStatus.ToString(),
+            NewStatus = h.NewStatus.ToString(),
+            Comment = h.Comment,
+            ApprovedByUserId = h.ApprovedByUserId,
+            ApprovedByUserName = h.ApprovedByUserName,
+            ActionDate = h.ActionDate
+        });
+    }
+
+    public async Task<PaginatedResult<EventPreview>> GetAllEventsAsync(int page = 1, int size = 10, EventStatus? status = null)
+    {
+        var result = await _eventRepository.GetAllAsync(page, size, status);
+        var dtos = result.Data.Select(e => _mapper.Map<EventPreview>(e));
+        return new PaginatedResult<EventPreview>
+        {
+            Data = dtos,
+            Page = result.Page,
+            Size = result.Size,
+            Total = result.Total
+        };
+    }
+
+    public async Task<EventSubmissionResponseDto> ApproveEventAsync(Guid adminUserId, Guid eventId, string? comment = null)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+
+        if (evnt.Status != EventStatus.Pending)
+            throw new Exception($"Cannot approve event with status {evnt.Status}");
+
+        var previousStatus = evnt.Status;
+        
+        // Cập nhật trạng thái event sang InProgress (đang xử lý tạo seat map và vé)
+        evnt.Status = EventStatus.InProgress;
+        await _eventRepository.UpdateAsync(evnt);
+
+        // Get admin user info
+        var adminUser = await _identityService.GetByIdAsync(adminUserId);
+
+        // Create approval history
+        var history = new EventApprovalHistory
+        {
+            EventId = eventId,
+            PreviousStatus = previousStatus,
+            NewStatus = EventStatus.InProgress,
+            Comment = comment,
+            ApprovedByUserId = adminUserId,
+            ApprovedByUserName = adminUser?.Email ?? "Admin",
+            ActionDate = DateTime.UtcNow
+        };
+        await _eventApprovalHistoryRepository.AddAsync(history);
+
+        // Gửi message vào queue để xử lý tạo seat map và vé
+        var message = new EventProcessingMessage
+        {
+            EventId = eventId,
+            AdminUserId = adminUserId,
+            RequestedAt = DateTime.UtcNow
+        };
+        await _messageQueueService.PublishEventProcessingMessageAsync(message);
+
+        return new EventSubmissionResponseDto
+        {
+            Success = true,
+            Message = "Event approval initiated. Seat map and tickets will be created by background worker.",
+            NewStatus = EventStatus.InProgress
+        };
+    }
+
+    public async Task<EventSubmissionResponseDto> RejectEventAsync(Guid adminUserId, Guid eventId, string comment)
+    {
+        if (string.IsNullOrWhiteSpace(comment))
+            throw new Exception("Rejection comment is required");
+
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new Exception("Event not found");
+
+        if (evnt.Status != EventStatus.Pending)
+            throw new Exception($"Cannot reject event with status {evnt.Status}");
+
+        var previousStatus = evnt.Status;
+        evnt.Status = EventStatus.Draft;
+        await _eventRepository.UpdateAsync(evnt);
+
+        // Get admin user info
+        var adminUser = await _identityService.GetByIdAsync(adminUserId);
+
+        // Create approval history
+        var history = new EventApprovalHistory
+        {
+            EventId = eventId,
+            PreviousStatus = previousStatus,
+            NewStatus = EventStatus.Draft,
+            Comment = comment,
+            ApprovedByUserId = adminUserId,
+            ApprovedByUserName = adminUser?.Email ?? "Admin",
+            ActionDate = DateTime.UtcNow
+        };
+        await _eventApprovalHistoryRepository.AddAsync(history);
+
+        return new EventSubmissionResponseDto
+        {
+            Success = true,
+            Message = "Event rejected successfully",
+            NewStatus = EventStatus.Draft
+        };
     }
 }

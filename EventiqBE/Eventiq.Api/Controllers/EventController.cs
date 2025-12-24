@@ -293,7 +293,7 @@ public class EventController:BaseController
         try
         {
             var userId = GetCurrentUserId();
-            var response = await _eventService.GetEventChartAsync(userId,eventId);
+            var response = await _eventService.GetEventChartsAsync(userId,eventId);
             return Ok(response);
         }
         catch (Exception ex)
@@ -301,7 +301,20 @@ public class EventController:BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
-
+    [HttpGet("{eventId}/charts/{chartId}")]
+    public async Task<ActionResult<ChartDto>> GetEventCharts([FromRoute] Guid eventId, [FromRoute] Guid chartId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.GetEventChartAsync(userId,eventId,chartId);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
     [Authorize(Policy = "Event.Update")]
     [HttpDelete("{eventId}/charts/{chartId}")]
     public async Task<ActionResult<bool>> DeleteChart([FromRoute] Guid eventId, [FromRoute] Guid chartId)
@@ -319,6 +332,139 @@ public class EventController:BaseController
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "Event.Update")]
+    [HttpPost("{eventId}/charts/{chartId}/sync-seats")]
+    public async Task<ActionResult<SyncSeatsResponseDto>> SyncSeats(
+        [FromRoute] Guid eventId, 
+        [FromRoute] Guid chartId,
+        [FromBody] SyncSeatsRequestDto request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.SyncSeatsAsync(userId, eventId, chartId, request.Seats, request.VenueDefinition);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{eventId}/charts/{chartId}/seats")]
+    public async Task<ActionResult<SeatMapViewDto>> GetSeatMapForView(
+        [FromRoute] Guid eventId, 
+        [FromRoute] Guid chartId,
+        [FromQuery] Guid? eventItemId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            // Detect Org role explicitly if any role claim contains "Org"
+            var roleClaims = User.FindAll("role")
+                                 .Select(c => c.Value)
+                                 .Concat(User.FindAll("roles").Select(c => c.Value))
+                                 .Concat(User.FindAll("permission").Select(c => c.Value))
+                                 .ToList();
+            var userRole = roleClaims.Any(r => r == "Org")
+                ? "Org"
+                : roleClaims.FirstOrDefault() ?? "User";
+            var response = await _eventService.GetSeatMapForViewAsync(userId, eventId, chartId, eventItemId, userRole);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "Event.Update")]
+    [HttpPut("{eventId}/validate")]
+    public async Task<ActionResult<EventValidationDto>> ValidateEvent([FromRoute] Guid eventId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.ValidateEventAsync(userId, eventId);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "Event.Update")]
+    [HttpPost("{eventId}/submit")]
+    public async Task<ActionResult<EventSubmissionResponseDto>> SubmitEvent([FromRoute] Guid eventId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.SubmitEventAsync(userId, eventId);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "Event.Update")]
+    [HttpPost("{eventId}/cancel")]
+    public async Task<ActionResult<bool>> CancelEvent([FromRoute] Guid eventId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.CancelEventAsync(userId, eventId);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{eventId}/approval-history")]
+    public async Task<ActionResult<IEnumerable<EventApprovalHistoryDto>>> GetApprovalHistory([FromRoute] Guid eventId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var response = await _eventService.GetApprovalHistoryAsync(userId, eventId);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
         }
         catch (Exception ex)
         {
