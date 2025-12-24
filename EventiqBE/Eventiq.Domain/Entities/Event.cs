@@ -12,18 +12,23 @@ public class Event:BaseEntity
     
     public virtual required Organization Organization { get; set; } 
     public Guid OrganizationId { get; set; }
-    public string BankCode { get; set; }
-    public string AccountNumber { get; set; } = "";
-    public string AccountName { get; set; } = "";
+    public string? BankCode { get; set; }
+    public string? AccountNumber { get; set; } = "";
+    public string? AccountName { get; set; } = "";
     public virtual EventAddress EventAddress { get; set; }
     public EventStatus Status { get; set; } = EventStatus.Draft;
     
+    public virtual ICollection<EventApprovalHistory> ApprovalHistory { get; set; } 
+        = new List<EventApprovalHistory>();
 
 }
 
 public enum EventStatus
 {
     Draft,
-    Published,
-    Pending
+    Pending,      // Đã submit, chờ admin duyệt
+    InProgress,  // Đang xử lý tạo seat map và vé (worker đang xử lý)
+    Published,     // Đã được duyệt, đang công khai
+    Rejected,     // Bị từ chối
+    Cancelled     // Đã hủy
 }

@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<ISeatService>(seatService => new SeatsIoService
         (
             config["SeatsIo:SecretKey"]));
+        services.AddScoped<IMessageQueueService, InMemoryMessageQueueService>();
         return services;
     }
     public static IServiceCollection AddPersistence(this IServiceCollection services,IConfiguration config)
@@ -37,6 +38,9 @@ public static class DependencyInjection
         services.AddScoped<ITicketClassRepository, TicketClassRepository>();
         services.AddScoped<IEventItemRepository, EventItemRepository>();
         services.AddScoped<IChartRepository, ChartRepository>();
+        services.AddScoped<IEventSeatRepository, EventSeatRepository>();
+        services.AddScoped<IEventSeatStateRepository, EventSeatStateRepository>();
+        services.AddScoped<IEventApprovalHistoryRepository, EventApprovalHistoryRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         return services;
     }

@@ -152,11 +152,23 @@ public static class Extensions
             .AddPersistence(builder.Configuration)
             .AddOrgAuthorize(builder.Configuration);
         builder.Services.AddScoped<IJwtService, JwtService>();
+        
+        // Đăng ký background worker để xử lý event processing
+        builder.Services.AddHostedService<EventProcessingWorker>();
     }
     public static IServiceCollection AddOrgAuthorize(this IServiceCollection services, IConfiguration config)
     {
         services.AddAuthorization(options =>
         {
+            // Admin policy - require Admin role
+            // Support both ClaimTypes.Role and the full claim type name
+            options.AddPolicy("Admin", policy =>
+                policy.RequireAssertion(context =>
+                    context.User.IsInRole("Admin") ||
+                    context.User.HasClaim(ClaimTypes.Role, "Admin") ||
+                    context.User.HasClaim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "Admin") ||
+                    context.User.HasClaim("role", "Admin")));
+            
             options.AddPolicy("Event.Create", policy =>
                 policy.RequireClaim("Permission", "Event.Create"));
             options.AddPolicy("Event.Submit", policy =>

@@ -1,4 +1,5 @@
 ﻿using Eventiq.Application.Dtos;
+using Eventiq.Domain.Entities;
 
 namespace Eventiq.Application.Interfaces.Services;
 
@@ -20,7 +21,22 @@ public interface IEventService
     Task<PaginatedResult<EventPreview>> GetEventsByOrganizationAsync(Guid userId, Guid orgId, int page = 1, int pageSize = 10);
     Task<ChartDto> CreateChartAsync(Guid userId, Guid eventId, CreateChartDto dto);
     Task<ChartDto> UpdateChartAsync(Guid userId, Guid eventId, Guid chartId, UpdateChartDto dto);
-    Task<IEnumerable<ChartDto>> GetEventChartAsync(Guid userId, Guid eventId);
+    Task<IEnumerable<ChartDto>> GetEventChartsAsync(Guid userId, Guid eventId);
+    Task<ChartDto> GetEventChartAsync(Guid userId, Guid eventId, Guid chartId);
     Task<bool> DeleteChartAsync(Guid userId, Guid eventId, Guid chartId);
+    
+    // New methods for seat map sync and event management
+    Task<SyncSeatsResponseDto> SyncSeatsAsync(Guid userId, Guid eventId, Guid chartId, IEnumerable<SeatInfoDto> seatsData, string? venueDefinition = null);
+    Task<SeatMapViewDto> GetSeatMapForViewAsync(Guid userId, Guid eventId, Guid chartId, Guid? eventItemId, string userRole);
+    Task<EventValidationDto> ValidateEventAsync(Guid userId, Guid eventId);
+    Task<EventSubmissionResponseDto> SubmitEventAsync(Guid userId, Guid eventId);
+    Task<bool> CancelEventAsync(Guid userId, Guid eventId);
+    Task<IEnumerable<EventApprovalHistoryDto>> GetApprovalHistoryAsync(Guid userId, Guid eventId);
+    Task<IEnumerable<EventApprovalHistoryDto>> GetApprovalHistoryForAdminAsync(Guid eventId);
+    
+    // Admin methods
+    Task<PaginatedResult<EventPreview>> GetAllEventsAsync(int page = 1, int size = 10, EventStatus? status = null);
+    Task<EventSubmissionResponseDto> ApproveEventAsync(Guid adminUserId, Guid eventId, string? comment = null);
+    Task<EventSubmissionResponseDto> RejectEventAsync(Guid adminUserId, Guid eventId, string comment);
 }
 
