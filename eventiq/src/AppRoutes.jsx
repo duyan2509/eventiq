@@ -1,27 +1,62 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MainLayout from './components/Layout/MainLayout';
+import AdminLayout from './components/Layout/AdminLayout';
 import Home from './pages/Home';
-import AdminPage from './pages/AdminPage';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminEventManagement from './pages/AdminEventManagement';
+import AdminRevenueManagement from './pages/AdminRevenueManagement';
+import AdminUserManagement from './pages/AdminUserManagement';
+import AdminProfile from './pages/AdminProfile';
 import OrgList from './pages/OrgList';
 import OrganizationDetail from './pages/OrganizationDetail';
 import CreateEvent from './pages/CreateEvent';
 import UpdateEvent from './pages/UpdateEvent';
+import EventDetail from './pages/EventDetail';
 import ProtectedRoute from './components/ProtectedRoute';
-
+import SeatMapDesignerPage from './pages/SeatMapDesignerPage';
 const AppRoutes = () => (
   <Router>
-    <MainLayout>
-      <Routes>
+    <Routes>
+      {/* Seat Map Designer Route - Outside MainLayout */}
+      <Route
+        path="/org/:orgId/event/:eventId/seat-map/:chartId"
+        element={
+          <ProtectedRoute roles="Org">
+            <SeatMapDesignerPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/org/:orgId/event/:eventId/chart/:chartId"
+        element={
+          <ProtectedRoute roles="Org">
+            <SeatMapDesignerPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      {/* Admin routes - Inside AdminLayout */}
+      <Route
+        element={
+          <ProtectedRoute roles="Admin">
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/events" element={<AdminEventManagement />} />
+        <Route path="/admin/revenue" element={<AdminRevenueManagement />} />
+        <Route path="/admin/users" element={<AdminUserManagement />} />
+        <Route path="/admin/profile" element={<AdminProfile />} />
+      </Route>
+
+      {/* All other routes - Inside MainLayout */}
+      <Route
+        element={<MainLayout />}
+      >
         <Route path="/" element={<Home />} />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute roles="Admin">
-              <AdminPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/event/:eventId" element={<EventDetail />} />
         <Route
           path="/org"
           element={
@@ -54,8 +89,8 @@ const AppRoutes = () => (
             </ProtectedRoute>
           }
         />
-      </Routes>
-    </MainLayout>
+      </Route>
+    </Routes>
   </Router>
 );
 
