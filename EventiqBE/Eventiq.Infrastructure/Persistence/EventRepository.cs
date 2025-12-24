@@ -50,4 +50,32 @@ public class EventRepository:GenericRepository<Event>, IEventRepository
             .Include(e => e.Organization)
             .FirstOrDefaultAsync(e => e.Id == eventId);
     }
+
+    public async Task<PaginatedResult<Event>> GetAllAsync(int page, int size, EventStatus? status = null)
+    {
+        var query = _dbSet
+            .Include(e => e.Organization)
+            .Include(e => e.EventAddress)
+            .AsQueryable();
+        
+        if (status.HasValue)
+        {
+            query = query.Where(e => e.Status == status.Value);
+        }
+        
+        var totalCount = await query.CountAsync();
+        var events = await query
+            .OrderByDescending(e => e.CreatedAt)
+            .Skip((page - 1) * size)
+            .Take(size)
+            .ToListAsync();
+        
+        return new PaginatedResult<Event>
+        {
+            Data = events,
+            Total = totalCount,
+            Page = page,
+            Size = size
+        };
+    }
 }
