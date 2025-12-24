@@ -17,69 +17,56 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     private DbSet<Ticket> Tickets { get; set; }
     private DbSet<TicketClass> TicketClasses { get; set; }
     private DbSet<Chart> Charts { get; set; }
+    private DbSet<EventSeatState> EventSeatStates { get; set; }
+    private DbSet<EventSeat> EventSeats { get; set; }
+    private DbSet<EventApprovalHistory> EventApprovalHistories { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<ApplicationUser>()
+        modelBuilder
+            .Entity<ApplicationUser>()
             .HasMany<Organization>(u => u.Organizations)
             .WithOne()
             .HasForeignKey(u => u.UserId);
-        modelBuilder.Entity<ApplicationUser>()
+        modelBuilder
+            .Entity<ApplicationUser>()
             .HasMany<Ticket>(u => u.Tickets)
             .WithOne()
             .HasForeignKey(u => u.UserId);
-        modelBuilder.Entity<Organization>()
-            .HasIndex(o => o.Name)
-            .IsUnique();
-        modelBuilder.Entity<Organization>()
-            .HasIndex(o => o.Name)
-            .IsUnique();
-        
-        modelBuilder.Entity<Event>()
-            .HasIndex(o => o.Name)
-            .IsUnique();
+        modelBuilder.Entity<Organization>().HasIndex(o => o.Name).IsUnique();
+        modelBuilder.Entity<Organization>().HasIndex(o => o.Name).IsUnique();
 
-        modelBuilder.Entity<Event>()
-            .HasIndex(o =>
-                new
-                {
-                    o.Start,
-                    o.Status
-                });
+        modelBuilder.Entity<Event>().HasIndex(o => o.Name).IsUnique();
 
-        modelBuilder.Entity<TicketClass>()
-            .HasIndex(tc => new
-            {
-                tc.Name,
-                tc.EventId
-            })
+        modelBuilder.Entity<Event>().HasIndex(o => new { o.Start, o.Status });
+
+        modelBuilder.Entity<TicketClass>().HasIndex(tc => new { tc.Name, tc.EventId }).IsUnique();
+        modelBuilder.Entity<EventItem>().HasIndex(ei => new { ei.Name, ei.EventId }).IsUnique();
+        modelBuilder.Entity<Chart>().HasIndex(ei => new { ei.Name, ei.EventId }).IsUnique();
+        modelBuilder
+            .Entity<EventSeatState>()
+            .HasIndex(x => new { x.EventItemId, x.EventSeatId })
             .IsUnique();
-        modelBuilder.Entity<EventItem>()
-            .HasIndex(ei => new
-            {
-                ei.Name,
-                ei.EventId,
-            }).IsUnique();
-        modelBuilder.Entity<Chart>()
-            .HasIndex(ei => new
-            {
-                ei.Name,
-                ei.EventId,
-            }).IsUnique();
+        modelBuilder.Entity<EventSeat>().HasIndex(x => new { x.ChartId, x.SeatKey }).IsUnique();
         // Global query filter for soft delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
                 var method = typeof(DbContextExtensions)
-                    .GetMethod(nameof(DbContextExtensions.AddIsDeletedFilter), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!
+                    .GetMethod(
+                        nameof(DbContextExtensions.AddIsDeletedFilter),
+                        System.Reflection.BindingFlags.Static
+                            | System.Reflection.BindingFlags.Public
+                    )!
                     .MakeGenericMethod(entityType.ClrType);
 
                 method.Invoke(null, new object[] { modelBuilder });
             }
         }
-        
+
         modelBuilder.HasDefaultSchema("identity");
     }
 
@@ -102,12 +89,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         return base.SaveChangesAsync(cancellationToken);
     }
+
     public static class DbContextExtensions
     {
-        public static void AddIsDeletedFilter<TEntity>(ModelBuilder builder) where TEntity : BaseEntity
+        public static void AddIsDeletedFilter<TEntity>(ModelBuilder builder)
+            where TEntity : BaseEntity
         {
             builder.Entity<TEntity>().HasQueryFilter(e => !e.IsDeleted);
         }
     }
-
 }
