@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Tag, Col, Pagination } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { convertFromRaw } from 'draft-js';
 import { organizationAPI } from '../services/api';
 import { useMessage } from '../hooks/useMessage';
 
@@ -45,6 +46,18 @@ const OrganizationDetail = () => {
         }));
     };
 
+    const getDescriptionText = (description) => {
+        if (!description) return '';
+        try {
+            const raw = JSON.parse(description);
+            const content = convertFromRaw(raw);
+            return content.getPlainText().slice(0, 200);
+        } catch {
+            // Fallback: return as-is
+            return description;
+        }
+    };
+
     return (
         <div className="p-6">
             <h1 className="text-2xl font-bold mb-6">Organization Events</h1>
@@ -66,10 +79,14 @@ const OrganizationDetail = () => {
                         >
                             <Card.Meta
                                 title={event.name}
-                                description={event.description}
+                                description={getDescriptionText(event.description)}
                             />
                             <Tag color="blue" className="mt-2">{event.status}</Tag>
-                            <p>{event.eventAddress.detail}, {event.eventAddress.communeName}, {event.eventAddress.provinceName}</p>
+                            <p>
+                                {event.eventAddress?.detail || ''}
+                                {event.eventAddress?.communeName ? `, ${event.eventAddress.communeName}` : ''}
+                                {event.eventAddress?.provinceName ? `, ${event.eventAddress.provinceName}` : ''}
+                            </p>
                         </Card>
                 ))}
             </Col>
