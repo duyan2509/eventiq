@@ -28,6 +28,7 @@ const Header = () => {
   const handleLogout = () => {
     logout();
     success('Logged out successfully');
+    navigate('/');
   };
 
   const userMenuItems = [

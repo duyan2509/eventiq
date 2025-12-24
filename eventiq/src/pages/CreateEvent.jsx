@@ -128,7 +128,14 @@ const CreateEvent = () => {
 
             const res = await eventAPI.create(eventData);
             success('Event created successfully!');
-            navigate(`/org/${values.organizationId}/event/${res.id}`);
+            // Backend now returns Id; fallback to id/eventId if naming differs
+            const newEventId = res?.id || res?.eventId || res?.eventID;
+            if (newEventId) {
+                navigate(`/org/${values.organizationId}/event/${newEventId}`);
+            } else {
+                // If no id returned, stay and warn
+                error('Event created but missing event id from response');
+            }
         } catch (err) {
             error(err?.response?.data?.message || 'Failed to create event');
         } finally {

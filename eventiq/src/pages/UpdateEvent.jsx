@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button, Anchor, Card, Steps } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { EditorState, RichUtils, convertToRaw, convertFromRaw } from 'draft-js';
 import { useMessage } from '../hooks/useMessage';
 import { eventAPI, bankAPI } from '../services/api';
@@ -10,6 +11,7 @@ import PaymentInfoForm from '../components/forms/PaymentInfoForm';
 import TicketClassManager from '../components/ticket-class/TicketClassManager';
 import SeatMapManager from '../components/SeatMapManager';
 import EventItemManager from '../components/EventItemManager';
+import SubmitEventStep from '../components/SubmitEventStep';
 
 const { Link } = Anchor;
 
@@ -60,7 +62,7 @@ const UpdateEvent = () => {
                         setEditorState(EditorState.createWithContent(contentState));
                     } catch (err) {
                         // If description is not in raw format, set as plain text
-                        setEditorState(EditorState.createWithContent(eventData.description));
+                        setEditorState(EditorState.createWithText(eventData.description.toString()));
                     }
                 }
                 if (eventData.eventAddress) {
@@ -93,6 +95,7 @@ const UpdateEvent = () => {
                 const res = await axios.get('https://production.cas.so/address-kit/2025-07-01/provinces');
                 setProvinces(res.data.provinces);
             } catch (err) {
+                console.error(err)
                 error('Failed to load provinces');
             }
         };
@@ -107,6 +110,7 @@ const UpdateEvent = () => {
                     const res = await axios.get(`https://production.cas.so/address-kit/2025-07-01/provinces/${selectedProvince}/communes`);
                     setCommunes(res.data.communes);
                 } catch (err) {
+                    console.error(err)
                     error('Failed to load communes');
                 }
             };
@@ -238,6 +242,21 @@ const UpdateEvent = () => {
                     className="mb-8"
                 />
 
+                <div className="flex justify-between mt-8 mb-8">
+                    <Button
+                        disabled={currentStep === 0}
+                        onClick={() => setCurrentStep((prev) => prev - 1)}
+                    >
+                        Previous
+                    </Button>
+                    <Button
+                        type="primary"
+                        disabled={currentStep === 4}
+                        onClick={() => setCurrentStep((prev) => prev + 1)}
+                    >
+                        Next
+                    </Button>
+                </div>
                 {currentStep === 0 && (
                     <>
                         <EventInfoForm
@@ -283,9 +302,12 @@ const UpdateEvent = () => {
                     </Card>
                 )}
                 {currentStep === 4 && (
-                    <Card className="mb-8 text-center">
-                        <h2>Submit</h2>
-                        <Button type="primary" size="large">Submit All</Button>
+                    <Card className="mb-8">
+                        <h2 className="text-xl font-bold mb-4">Validate & Submit Event</h2>
+                        <SubmitEventStep
+                            eventId={eventId}
+                            onValidationChange={setLoading}
+                        />
                     </Card>
                 )}
 
@@ -305,7 +327,7 @@ const UpdateEvent = () => {
                     </Button>
                 </div>
             </div>
-          
+
         </div>
     );
 };

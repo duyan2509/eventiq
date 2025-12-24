@@ -28,9 +28,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Tránh tự động đăng xuất & điều hướng về trang chủ khi có 401 từ API
+    // Để UI tự xử lý (ví dụ hiển thị thông báo), giữ JWT để tránh mất phiên ngoài ý muốn
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/';
+      // no-op: do not clear token or redirect
+      return Promise.reject(error);
     }
     return Promise.reject(error);
   }
@@ -139,6 +141,11 @@ export const eventAPI = {
     return response.data;
   },
 
+  getEventChart: async (eventId, chartId) => {
+    const response = await api.get(`/event/${eventId}/charts/${chartId}`);
+    return response.data;
+  },
+
   // Event Item APIs
   getEventItems: async (eventId) => {
     const response = await api.get(`/event/${eventId}/event-item`);
@@ -202,6 +209,63 @@ export const eventAPI = {
 
   updateEventPayment: async (eventId, data) => {
     const response = await api.put(`/event/${eventId}/payment`, data);
+    return response.data;
+  },
+
+  // Seat map sync and view
+  syncSeats: async (eventId, chartId, seatsData) => {
+    const response = await api.post(`/event/${eventId}/charts/${chartId}/sync-seats`, seatsData);
+    return response.data;
+  },
+
+  getSeatMapForView: async (eventId, chartId, eventItemId = null) => {
+    const params = eventItemId ? { eventItemId } : {};
+    const response = await api.get(`/event/${eventId}/charts/${chartId}/seats`, { params });
+    return response.data;
+  },
+
+  // Event validation and submission
+  validateEvent: async (eventId) => {
+    const response = await api.put(`/event/${eventId}/validate`);
+    return response.data;
+  },
+
+  submitEvent: async (eventId) => {
+    const response = await api.post(`/event/${eventId}/submit`);
+    return response.data;
+  },
+
+  cancelEvent: async (eventId) => {
+    const response = await api.post(`/event/${eventId}/cancel`);
+    return response.data;
+  },
+
+  getApprovalHistory: async (eventId) => {
+    const response = await api.get(`/event/${eventId}/approval-history`);
+    return response.data;
+  },
+};
+
+export const adminAPI = {
+  getEvents: async (page = 1, size = 10, status = null) => {
+    const params = { page, size };
+    if (status) params.status = status;
+    const response = await api.get('/admin/events', { params });
+    return response.data;
+  },
+
+  approveEvent: async (eventId, comment = null) => {
+    const response = await api.post(`/admin/events/${eventId}/approve`, { comment });
+    return response.data;
+  },
+
+  rejectEvent: async (eventId, comment) => {
+    const response = await api.post(`/admin/events/${eventId}/reject`, { comment });
+    return response.data;
+  },
+
+  getApprovalHistory: async (eventId) => {
+    const response = await api.get(`/admin/events/${eventId}/approval-history`);
     return response.data;
   },
 };

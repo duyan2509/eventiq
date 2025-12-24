@@ -12,17 +12,41 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  // Khởi tạo từ localStorage để giữ phiên và roles
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  });
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState(() => localStorage.getItem('token'));
+
+  const decodeRolesFromToken = (jwtToken) => {
+    try {
+      const payload = JSON.parse(atob(jwtToken.split('.')[1]));
+      const roles =
+        payload?.['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
+        payload?.role ||
+        payload?.roles ||
+        [];
+      if (Array.isArray(roles)) return roles;
+      if (roles) return [roles];
+    } catch (_) {}
+    return [];
+  };
 
   useEffect(() => {
     if (token) {
       setLoading(true);
-      authAPI.getMe(token)
+      // getMe dùng Authorization header nên không cần truyền token
+      authAPI.getMe()
         .then((res) => {
-          setUser(res);
-          localStorage.setItem('user', JSON.stringify(res));
+          // Bổ sung roles từ token nếu API không trả
+          const rolesFromToken = token ? decodeRolesFromToken(token) : [];
+          const userWithRoles = rolesFromToken.length && !res.roles
+            ? { ...res, roles: rolesFromToken }
+            : res;
+          setUser(userWithRoles);
+          localStorage.setItem('user', JSON.stringify(userWithRoles));
         })
         .catch(() => {
           setUser(null);
@@ -44,8 +68,13 @@ export const AuthProvider = ({ children }) => {
       const res = await authAPI.login(credentials);
       setToken(res.token);
       localStorage.setItem('token', res.token);
-      setUser(res.user || null);
-      if (res.user) localStorage.setItem('user', JSON.stringify(res.user));
+      const rolesFromToken = res.token ? decodeRolesFromToken(res.token) : [];
+      // Nếu backend trả user kèm roles, dùng ngay; nếu không, gán roles từ token
+      const nextUser = res.user
+        ? (res.user.roles ? res.user : { ...res.user, roles: rolesFromToken })
+        : (rolesFromToken.length ? { roles: rolesFromToken } : null);
+      setUser(nextUser);
+      if (nextUser) localStorage.setItem('user', JSON.stringify(nextUser));
       setLoading(false);
       return { success: true };
     } catch (error) {
