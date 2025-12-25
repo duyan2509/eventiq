@@ -20,6 +20,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     private DbSet<EventSeatState> EventSeatStates { get; set; }
     private DbSet<EventSeat> EventSeats { get; set; }
     private DbSet<EventApprovalHistory> EventApprovalHistories { get; set; }
+    private DbSet<Staff> Staffs { get; set; }
+    private DbSet<StaffInvitation> StaffInvitations { get; set; }
+    private DbSet<EventTask> EventTasks { get; set; }
+    private DbSet<TaskOption> TaskOptions { get; set; }
+    private DbSet<StaffTaskAssignment> StaffTaskAssignments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +55,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasIndex(x => new { x.EventItemId, x.EventSeatId })
             .IsUnique();
         modelBuilder.Entity<EventSeat>().HasIndex(x => new { x.ChartId, x.SeatKey }).IsUnique();
+        
+        // Staff and Task indexes
+        modelBuilder.Entity<Staff>().HasIndex(s => new { s.EventId, s.UserId }).IsUnique();
+        modelBuilder.Entity<StaffInvitation>().HasIndex(si => new { si.EventId, si.InvitedUserId, si.Status })
+            .HasFilter("\"Status\" = 0"); // Only unique for pending invitations
+        modelBuilder.Entity<EventTask>().HasIndex(t => new { t.Name, t.EventId }).IsUnique();
+        modelBuilder.Entity<TaskOption>().HasIndex(to => new { to.OptionName, to.TaskId }).IsUnique();
+        modelBuilder.Entity<StaffTaskAssignment>().HasIndex(sta => new { sta.StaffId, sta.TaskId, sta.OptionId }).IsUnique();
+        
         // Global query filter for soft delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
