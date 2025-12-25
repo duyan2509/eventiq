@@ -7,7 +7,7 @@ import {
     DollarOutlined,
     UserOutlined,
     LogoutOutlined,
-    SettingOutlined,
+    BellOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMessage } from '../../hooks/useMessage';
@@ -29,6 +29,22 @@ const AdminLayout = () => {
 
     const handleProfile = () => {
         navigate('/admin/profile');
+    };
+
+    const handleUserMenuClick = ({ key }) => {
+        switch (key) {
+            case 'profile':
+                handleProfile();
+                break;
+            case 'invitations':
+                navigate('/invitations');
+                break;
+            case 'logout':
+                handleLogout();
+                break;
+            default:
+                break;
+        }
     };
 
     const menuItems = [
@@ -134,12 +150,11 @@ const AdminLayout = () => {
                                         key: 'profile',
                                         icon: <UserOutlined />,
                                         label: 'Profile',
-                                        onClick: handleProfile,
                                     },
                                     {
-                                        key: 'settings',
-                                        icon: <SettingOutlined />,
-                                        label: 'Settings',
+                                        key: 'invitations',
+                                        icon: <BellOutlined />,
+                                        label: 'My Invitations',
                                     },
                                     {
                                         type: 'divider',
@@ -148,9 +163,9 @@ const AdminLayout = () => {
                                         key: 'logout',
                                         icon: <LogoutOutlined />,
                                         label: 'Logout',
-                                        onClick: handleLogout,
                                     },
                                 ],
+                                onClick: handleUserMenuClick,
                             }}
                             placement="bottomRight"
                             arrow

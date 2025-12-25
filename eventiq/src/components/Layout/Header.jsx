@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { Layout, Input, Button, Space, Dropdown, Avatar } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Input, Button, Space, Dropdown, Avatar, Badge } from 'antd';
 import { useMessage } from '../../hooks/useMessage';
-import { SearchOutlined, UserOutlined, LogoutOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
+import { SearchOutlined, UserOutlined, LogoutOutlined, TeamOutlined, BellOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { staffAPI } from '../../services/api';
+import { signalRService } from '../../services/signalr';
 import LoginModal from '../Auth/LoginModal';
 import RegisterModal from '../Auth/RegisterModal';
 
@@ -17,6 +19,7 @@ const Header = () => {
   const [loginVisible, setLoginVisible] = useState(false);
   const [registerVisible, setRegisterVisible] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
 
   const handleSearch = (value) => {
     if (value.trim()) {
@@ -31,6 +34,65 @@ const Header = () => {
     navigate('/');
   };
 
+  useEffect(() => {
+    if (user) {
+      fetchPendingInvitations();
+      
+      // Setup SignalR for real-time updates
+      const token = localStorage.getItem('token');
+      if (token) {
+        signalRService.connect(token);
+      }
+
+      // Register SignalR event handlers
+      const handleStaffInvited = () => {
+        fetchPendingInvitations();
+      };
+
+      const handleStaffInvitationResponded = () => {
+        fetchPendingInvitations();
+      };
+
+      signalRService.on('StaffInvited', handleStaffInvited);
+      signalRService.on('StaffInvitationResponded', handleStaffInvitationResponded);
+
+      // Refresh every 30 seconds as fallback
+      const interval = setInterval(fetchPendingInvitations, 30000);
+      
+      return () => {
+        clearInterval(interval);
+        signalRService.off('StaffInvited', handleStaffInvited);
+        signalRService.off('StaffInvitationResponded', handleStaffInvitationResponded);
+      };
+    }
+  }, [user]);
+
+  const fetchPendingInvitations = async () => {
+    try {
+      const invitations = await staffAPI.getMyInvitations();
+      const pending = invitations?.filter(inv => inv.status === 'Pending') || [];
+      setPendingInvitationsCount(pending.length);
+    } catch (err) {
+      // Silently fail - don't show error for background refresh
+    }
+  };
+
+  const handleMenuClick = ({ key }) => {
+    switch (key) {
+      case 'organizations':
+        navigate('/org');
+        break;
+      case 'invitations':
+        navigate('/invitations');
+        break;
+      case 'logout':
+        handleLogout();
+        break;
+      default:
+        break;
+    }
+  };
+
   const userMenuItems = [
     {
       key: 'profile',
@@ -41,12 +103,17 @@ const Header = () => {
       key: 'organizations',
       icon: <TeamOutlined />,
       label: 'My Organizations',
-      onClick: () => navigate('/org'),
     },
     {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: 'Settings',
+      key: 'invitations',
+      icon: pendingInvitationsCount > 0 ? (
+        <Badge count={pendingInvitationsCount} size="small">
+          <BellOutlined />
+        </Badge>
+      ) : (
+        <BellOutlined />
+      ),
+      label: `My Invitations${pendingInvitationsCount > 0 ? ` (${pendingInvitationsCount})` : ''}`,
     },
     {
       type: 'divider',
@@ -55,7 +122,6 @@ const Header = () => {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: 'Logout',
-      onClick: handleLogout,
     },
   ];
 
@@ -85,7 +151,7 @@ const Header = () => {
         <Space size="middle">
           {user ? (
             <Dropdown
-              menu={{ items: userMenuItems }}
+              menu={{ items: userMenuItems, onClick: handleMenuClick }}
               placement="bottomRight"
               arrow
             >

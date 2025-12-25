@@ -24,6 +24,11 @@ const ProtectedRoute = ({ roles, children, redirect = '/' }) => {
     if (loading) return null;
     if (!storedUser && !token) return <Navigate to="/" replace />;
 
+    // If no roles specified, just check authentication
+    if (!roles) {
+        return children;
+    }
+
     let userRoles = storedUser?.roles;
     if (!userRoles || (Array.isArray(userRoles) && userRoles.length === 0)) {
         // Fallback decode from token

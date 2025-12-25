@@ -15,6 +15,8 @@ import UpdateEvent from './pages/UpdateEvent';
 import EventDetail from './pages/EventDetail';
 import ProtectedRoute from './components/ProtectedRoute';
 import SeatMapDesignerPage from './pages/SeatMapDesignerPage';
+import StaffManagement from './pages/StaffManagement';
+import Invitations from './pages/Invitations';
 const AppRoutes = () => (
   <Router>
     <Routes>
@@ -86,6 +88,22 @@ const AppRoutes = () => (
           element={
             <ProtectedRoute roles="Org">
               <UpdateEvent />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/org/:orgId/event/:eventId/staff"
+          element={
+            <ProtectedRoute roles="Org">
+              <StaffManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/invitations"
+          element={
+            <ProtectedRoute>
+              <Invitations />
             </ProtectedRoute>
           }
         />
