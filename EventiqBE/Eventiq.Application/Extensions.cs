@@ -14,6 +14,7 @@ public static class Main
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IEventService, EventService>();
+        services.AddScoped<IStaffService, StaffService>();
         return services;
     }
     public static IServiceCollection AddAutoMapper(this IServiceCollection services)
