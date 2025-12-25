@@ -41,6 +41,11 @@ public static class DependencyInjection
         services.AddScoped<IEventSeatRepository, EventSeatRepository>();
         services.AddScoped<IEventSeatStateRepository, EventSeatStateRepository>();
         services.AddScoped<IEventApprovalHistoryRepository, EventApprovalHistoryRepository>();
+        services.AddScoped<IStaffRepository, StaffRepository>();
+        services.AddScoped<IStaffInvitationRepository, StaffInvitationRepository>();
+        services.AddScoped<IEventTaskRepository, EventTaskRepository>();
+        services.AddScoped<ITaskOptionRepository, TaskOptionRepository>();
+        services.AddScoped<IStaffTaskAssignmentRepository, StaffTaskAssignmentRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         return services;
     }
