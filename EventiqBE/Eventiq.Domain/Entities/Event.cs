@@ -20,6 +20,10 @@ public class Event:BaseEntity
     
     public virtual ICollection<EventApprovalHistory> ApprovalHistory { get; set; } 
         = new List<EventApprovalHistory>();
+    
+    public virtual ICollection<Staff> Staffs { get; set; } = new List<Staff>();
+    public virtual ICollection<StaffInvitation> StaffInvitations { get; set; } = new List<StaffInvitation>();
+    public virtual ICollection<EventTask> Tasks { get; set; } = new List<EventTask>();
 
 }
 
