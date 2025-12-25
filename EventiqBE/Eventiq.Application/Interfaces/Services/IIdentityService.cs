@@ -5,6 +5,7 @@ namespace Eventiq.Application.Interfaces.Services;
 public interface IIdentityService
 {
     Task<UserDto> GetByIdAsync(Guid id);
+    Task<UserDto> GetByEmailAsync(string email);
     Task<UserDto> CreateAsync(CreateUserDto dto);
     Task<UserDto> UpdateAsync(Guid id, UpdateUserDto dto);
     Task<LoginResponseDto> LoginAsync(LoginDto dto);

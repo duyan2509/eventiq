@@ -32,6 +32,21 @@ public class IdentityService(
         };
     }
 
+    public async Task<UserDto> GetByEmailAsync(string email)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user == null) 
+            throw new KeyNotFoundException($"User not found with email: {email}");
+        var roles = await userManager.GetRolesAsync(user);
+        return new UserDto
+        {
+            Id = user.Id,
+            Email = user.Email!,
+            Username = user.UserName,
+            Roles = roles?.ToList() ?? new List<string>()
+        };
+    }
+
     public async Task<UserDto> CreateAsync(CreateUserDto dto)
     {
         var user = new ApplicationUser
