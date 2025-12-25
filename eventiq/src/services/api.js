@@ -286,6 +286,88 @@ const handleBankAPIError = (error) => {
   throw error;
 };
 
+export const staffAPI = {
+  // Staff Management
+  getEventStaffs: async (eventId) => {
+    const response = await api.get(`/staff/events/${eventId}/staffs`);
+    return response.data;
+  },
+
+  // Invitations
+  inviteStaff: async (data) => {
+    const response = await api.post('/staff/invitations', data);
+    return response.data;
+  },
+
+  respondToInvitation: async (invitationId, accept) => {
+    const response = await api.post(`/staff/invitations/${invitationId}/respond`, { accept });
+    return response.data;
+  },
+
+  getMyInvitations: async () => {
+    const response = await api.get('/staff/invitations/my-invitations');
+    return response.data;
+  },
+
+  getEventInvitations: async (eventId) => {
+    const response = await api.get(`/staff/events/${eventId}/invitations`);
+    return response.data;
+  },
+
+  // Tasks
+  getEventTasks: async (eventId) => {
+    const response = await api.get(`/staff/events/${eventId}/tasks`);
+    return response.data;
+  },
+
+  createTask: async (data) => {
+    const response = await api.post('/staff/tasks', data);
+    return response.data;
+  },
+
+  updateTask: async (eventId, taskId, data) => {
+    const response = await api.put(`/staff/events/${eventId}/tasks/${taskId}`, data);
+    return response.data;
+  },
+
+  deleteTask: async (eventId, taskId) => {
+    const response = await api.delete(`/staff/events/${eventId}/tasks/${taskId}`);
+    return response.data;
+  },
+
+  // Task Options
+  getTaskOptions: async (eventId, taskId) => {
+    const response = await api.get(`/staff/events/${eventId}/tasks/${taskId}/options`);
+    return response.data;
+  },
+
+  createTaskOption: async (eventId, taskId, data) => {
+    const response = await api.post(`/staff/events/${eventId}/tasks/${taskId}/options`, data);
+    return response.data;
+  },
+
+  updateTaskOption: async (eventId, taskId, optionId, data) => {
+    const response = await api.put(`/staff/events/${eventId}/tasks/${taskId}/options/${optionId}`, data);
+    return response.data;
+  },
+
+  deleteTaskOption: async (eventId, taskId, optionId) => {
+    const response = await api.delete(`/staff/events/${eventId}/tasks/${taskId}/options/${optionId}`);
+    return response.data;
+  },
+
+  // Task Assignment
+  assignTaskToStaff: async (eventId, data) => {
+    const response = await api.post(`/staff/events/${eventId}/tasks/assign`, data);
+    return response.data;
+  },
+
+  unassignTaskFromStaff: async (eventId, taskId, optionId, staffId) => {
+    const response = await api.delete(`/staff/events/${eventId}/tasks/${taskId}/options/${optionId}/staffs/${staffId}`);
+    return response.data;
+  },
+};
+
 export const bankAPI = {
   getBankList: async () => {
     try {
