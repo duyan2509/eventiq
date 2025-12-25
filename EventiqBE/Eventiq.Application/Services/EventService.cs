@@ -20,7 +20,7 @@ public class EventService:IEventService
 
     private readonly IEventItemRepository _eventItemRepository;
 
-    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IChartRepository chartRepository, IEventItemRepository eventItemRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository, ISeatService seatService, IEventSeatRepository eventSeatRepository, IEventSeatStateRepository eventSeatStateRepository, IEventApprovalHistoryRepository eventApprovalHistoryRepository, IMessageQueueService messageQueueService)
+    public EventService(IEventRepository eventRepository, IMapper mapper, ICloudStorageService storageService, IUnitOfWork unitOfWork, IEventAddressRepository eventAddressRepository, IOrganizationRepository organizationRepository, IChartRepository chartRepository, IEventItemRepository eventItemRepository, IIdentityService identityService, ITicketClassRepository ticketClassRepository, ISeatService seatService, IEventSeatRepository eventSeatRepository, IEventSeatStateRepository eventSeatStateRepository, IEventApprovalHistoryRepository eventApprovalHistoryRepository, IMessageQueueService messageQueueService, IEventTaskRepository eventTaskRepository, ITaskOptionRepository taskOptionRepository)
     {
         _eventRepository = eventRepository;
         _mapper = mapper;
@@ -37,6 +37,8 @@ public class EventService:IEventService
         _eventSeatStateRepository = eventSeatStateRepository;
         _eventApprovalHistoryRepository = eventApprovalHistoryRepository;
         _messageQueueService = messageQueueService;
+        _eventTaskRepository = eventTaskRepository;
+        _taskOptionRepository = taskOptionRepository;
     }
 
     private readonly IIdentityService _identityService;
@@ -46,6 +48,8 @@ public class EventService:IEventService
     private readonly IEventSeatStateRepository _eventSeatStateRepository;
     private readonly IEventApprovalHistoryRepository _eventApprovalHistoryRepository;
     private readonly IMessageQueueService _messageQueueService;
+    private readonly IEventTaskRepository _eventTaskRepository;
+    private readonly ITaskOptionRepository _taskOptionRepository;
 
 
 
@@ -71,6 +75,25 @@ public class EventService:IEventService
             var address = _mapper.Map<EventAddress>(dto.EventAddress);
             address.EventId = evnt.Id;
             await _eventAddressRepository.AddAsync(address);
+            
+            // Create default task: Scan ticket with default option Gate A
+            var defaultTask = new EventTask
+            {
+                EventId = evnt.Id,
+                Name = "Scan ",
+                Description = "Default task for scanning tickets",
+                IsDefault = true
+            };
+            await _eventTaskRepository.AddAsync(defaultTask);
+            
+            // Create default option: Gate A
+            var defaultOption = new TaskOption
+            {
+                TaskId = defaultTask.Id,
+                OptionName = "Gate A"
+            };
+            await _taskOptionRepository.AddAsync(defaultOption);
+            
             await _unitOfWork.CommitAsync();
             evnt.EventAddress = address;
 
