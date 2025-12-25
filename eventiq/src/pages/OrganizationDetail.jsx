@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Card, Tag, Col, Pagination } from 'antd';
+import { Card, Tag, Col, Pagination, Button } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { convertFromRaw } from 'draft-js';
 import { organizationAPI } from '../services/api';
@@ -87,6 +87,17 @@ const OrganizationDetail = () => {
                                 {event.eventAddress?.communeName ? `, ${event.eventAddress.communeName}` : ''}
                                 {event.eventAddress?.provinceName ? `, ${event.eventAddress.provinceName}` : ''}
                             </p>
+                            <div className="mt-4">
+                                <Button 
+                                    type="primary" 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/org/${orgId}/event/${event.id}/staff`);
+                                    }}
+                                >
+                                    Staff Config
+                                </Button>
+                            </div>
                         </Card>
                 ))}
             </Col>
