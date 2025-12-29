@@ -17,6 +17,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import SeatMapDesignerPage from './pages/SeatMapDesignerPage';
 import StaffManagement from './pages/StaffManagement';
 import Invitations from './pages/Invitations';
+import CustomerEventList from './pages/CustomerEventList';
+import CustomerEventDetail from './pages/CustomerEventDetail';
+import CustomerSeatMap from './pages/CustomerSeatMap';
+import PaymentSkeleton from './pages/PaymentSkeleton';
 const AppRoutes = () => (
   <Router>
     <Routes>
@@ -36,6 +40,12 @@ const AppRoutes = () => (
             <SeatMapDesignerPage />
           </ProtectedRoute>
         }
+      />
+      
+      {/* Customer Seat Map Route - Outside MainLayout (Full Screen) */}
+      <Route
+        path="/events/:eventId/items/:eventItemId/seats"
+        element={<CustomerSeatMap />}
       />
       
       {/* Admin routes - Inside AdminLayout */}
@@ -58,6 +68,9 @@ const AppRoutes = () => (
         element={<MainLayout />}
       >
         <Route path="/" element={<Home />} />
+        <Route path="/events" element={<CustomerEventList />} />
+        <Route path="/events/:eventId" element={<CustomerEventDetail />} />
+        <Route path="/payment" element={<PaymentSkeleton />} />
         <Route path="/event/:eventId" element={<EventDetail />} />
         <Route
           path="/org"

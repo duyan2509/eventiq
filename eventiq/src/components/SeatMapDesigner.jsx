@@ -105,6 +105,29 @@ const SeatMapDesigner = () => {
                     priceFormatter={price => '₫' + price}
                     region='OC'
                     language="en"
+                    onChartCreated={async (chartKey) => {
+                        console.log('Chart created with key:', chartKey);
+                        // If current chart.key is GUID, update it with the new chartKey from Seats.io
+                        const isGuidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chart.key);
+                        if (isGuidFormat && chartKey && chartKey !== chart.key) {
+                            console.log('Updating chart key from', chart.key, 'to', chartKey);
+                            try {
+                                // Update chart key in database
+                                await eventAPI.updateEventChart(eventId, chartId, {
+                                    name: chart.name,
+                                    chartKey: chartKey
+                                });
+                                // Update local state
+                                setChart({ ...chart, key: chartKey });
+                                console.log('Chart key updated successfully');
+                            } catch (err) {
+                                console.error('Failed to update chart key:', err);
+                                error('Failed to update chart key. Please try saving again.');
+                            }
+                        }
+                    }}
+                    
+
                 />
             ) : (
                 // Viewer mode for regular users - show seats with status from DB

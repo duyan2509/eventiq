@@ -214,7 +214,11 @@ export const eventAPI = {
 
   // Seat map sync and view
   syncSeats: async (eventId, chartId, seatsData) => {
-    const response = await api.post(`/event/${eventId}/charts/${chartId}/sync-seats`, seatsData);
+    const response = await api.post(`/event/${eventId}/charts/${chartId}/sync-seats`, {
+      seats: seatsData.seats || seatsData,
+      venueDefinition: seatsData.venueDefinition,
+      chartKey: seatsData.chartKey, // Include chartKey from Seats.io designer
+    });
     return response.data;
   },
 
@@ -400,6 +404,26 @@ export const bankAPI = {
       handleBankAPIError(error);
     }
   }
+};
+
+export const customerAPI = {
+  // Get published events list (upcoming and past)
+  getPublishedEvents: async () => {
+    const response = await api.get('/events');
+    return response.data;
+  },
+
+  // Get published event detail
+  getPublishedEventDetail: async (eventId) => {
+    const response = await api.get(`/events/${eventId}`);
+    return response.data;
+  },
+
+  // Get seat map for event item
+  getEventItemSeatMap: async (eventId, eventItemId) => {
+    const response = await api.get(`/events/${eventId}/items/${eventItemId}/seat-map`);
+    return response.data;
+  },
 };
 
 export default api;
