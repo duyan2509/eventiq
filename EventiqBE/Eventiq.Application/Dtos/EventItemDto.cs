@@ -17,6 +17,7 @@ public class CreateEventItemDto
     public DateTime End { get; set; }
     public DateTime Start { get; set; }
     public required Guid ChartId { get; set; }
+    public int MaxPerUser { get; set; } = 0; 
 
     public bool CheckValidTime()
     {
@@ -31,6 +32,7 @@ public class UpdateEventItemDto
     public DateTime? End { get; set; }
     public DateTime? Start { get; set; }
     public Guid? ChartId { get; set; }
+    public int? MaxPerUser { get; set; } // Số lượng ghế tối đa mỗi người dùng có thể mua (null = không thay đổi, 0 = không giới hạn)
 
 }
 

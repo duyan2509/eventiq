@@ -12,6 +12,7 @@ public class ChartDto
 public class UpdateChartDto
 {
     public required string Name { get; set; }
+    public string? ChartKey { get; set; } // Seats.io chart key
 }
 
 public class CreateChartDto
