@@ -7,9 +7,9 @@ public class TicketClass:BaseEntity
     public virtual ICollection<Ticket> Tickets { get; set; } = new HashSet<Ticket>();
     public decimal Price { get; set; }
     public string Name { get; set; }
+    public string? Color { get; set; } 
     public int TotalQuantity { get; set; }  = 0;
     public int SoldQuantity { get; set; } = 0;
-    public int MaxPerUser { get; set; }
     public DateTime SaleStart { get; set; }
     public DateTime SaleEnd { get; set; }
 }

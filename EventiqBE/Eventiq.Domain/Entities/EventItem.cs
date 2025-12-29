@@ -10,5 +10,7 @@ public class EventItem: BaseEntity
     public virtual Event Event { get; set; }
     public virtual Chart Chart { get; set; }
     public Guid ChartId { get; set; }
+    public string? EventKey { get; set; } // Seats.io event key
+    public int MaxPerUser { get; set; } = 0;
     public List<Ticket>  Tickets { get; set; } = new List<Ticket>();
 }
