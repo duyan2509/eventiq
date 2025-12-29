@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Popconfirm, DatePicker, Select } from 'antd';
+import { Table, Button, Modal, Form, Input, Popconfirm, DatePicker, Select, InputNumber } from 'antd';
 import { eventAPI } from '../services/api';
 import dayjs from 'dayjs';
 import { useMessage } from '../hooks/useMessage';
@@ -108,6 +108,12 @@ const EventItemManager = ({ eventId, orgId }) => {
             key: 'chartName',
         },
         {
+            title: 'Max/User',
+            dataIndex: 'maxPerUser',
+            key: 'maxPerUser',
+            render: (text) => text || text === 0 ? text : '-',
+        },
+        {
             title: 'Action',
             key: 'action',
             render: (_, record) => (
@@ -122,6 +128,7 @@ const EventItemManager = ({ eventId, orgId }) => {
                                 description: record.description,
                                 chartId: record.chart.id,
                                 timeRange: [dayjs(record.start), dayjs(record.end)],
+                                maxPerUser: record.maxPerUser,
                             });
                         }}
                     >
@@ -224,6 +231,21 @@ const EventItemManager = ({ eventId, orgId }) => {
                         <RangePicker 
                             showTime 
                             format="YYYY-MM-DD HH:mm:ss"
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="maxPerUser"
+                        label="Max Per User"
+                        rules={[
+                            { type: 'number', min: 0, message: 'Max per user must be >= 0' }
+                        ]}
+                    >
+                        <InputNumber 
+                            style={{ width: '100%' }} 
+                            type="number" 
+                            min={0} 
+                            placeholder="0 = unlimited"
                         />
                     </Form.Item>
 

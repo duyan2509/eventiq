@@ -36,7 +36,6 @@ const TicketClassManager = ({ eventId }) => {
         setInitialValues({
             name: '',
             price: null,
-            maxPerUser: null,
             saleStart: null,
             saleEnd: null,
         });
@@ -98,7 +97,6 @@ const TicketClassManager = ({ eventId }) => {
 
                 if (values.name !== initialValues.name) payload.name = values.name;
                 if (values.price !== initialValues.price) payload.price = values.price;
-                if (values.maxPerUser !== initialValues.maxPerUser) payload.maxPerUser = values.maxPerUser;
                 if ((values.saleStart && !initialValues.saleStart) || (!values.saleStart && initialValues.saleStart) || (values.saleStart && initialValues.saleStart && !dayjs(values.saleStart).isSame(dayjs(initialValues.saleStart)))) {
                     payload.saleStart = values.saleStart ? values.saleStart.toISOString() : null;
                 }
@@ -147,7 +145,6 @@ const TicketClassManager = ({ eventId }) => {
     const columns = [
         { title: 'Name', dataIndex: 'name' },
         { title: 'Price', dataIndex: 'price' },
-        { title: 'Max/User', dataIndex: 'maxPerUser' },
         { title: 'Sale Start', dataIndex: 'saleStart', render: v => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
         { title: 'Sale End', dataIndex: 'saleEnd', render: v => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
         {
@@ -202,9 +199,6 @@ const TicketClassManager = ({ eventId }) => {
                     </Form.Item>
                     <Form.Item name="price" label="Price" rules={[{ required: true, type: 'number', min: 0, message: 'Price must be a number >= 0' }]}>
                         <InputNumber  style={{ width: '100%' }} type="number" min={0} />
-                    </Form.Item>
-                    <Form.Item name="maxPerUser" label="Max Per User" rules={[{ required: true, type: 'number', min: 1, message: 'Max per user must be >= 1' }]}>
-                        <InputNumber style={{ width: '100%' }} type="number" min={1} />
                     </Form.Item>
                     <Form.Item name="saleStart" label="Sale Start">
                         <DatePicker showTime style={{ width: '100%' }} />
