@@ -23,7 +23,7 @@ public class InMemoryMessageQueueService : IMessageQueueService
         lock (_lock)
         {
             _messageQueue.Enqueue(message);
-            _logger.LogInformation("Event processing message queued for EventId: {EventId}", message.EventId);
+            _logger.LogInformation("Event processing message queued for EventId: {EventId}. Queue now has {Count} message(s).", message.EventId, _messageQueue.Count);
         }
         return Task.CompletedTask;
     }

@@ -18,6 +18,7 @@ public class SyncSeatsRequestDto
 {
     public IEnumerable<SeatInfoDto> Seats { get; set; } = new List<SeatInfoDto>();
     public string? VenueDefinition { get; set; } // JSON string chứa cấu hình seat map từ Seats.io
+    public string? ChartKey { get; set; } // Seats.io chart key từ designer
 }
 
 public class SyncSeatsResponseDto
