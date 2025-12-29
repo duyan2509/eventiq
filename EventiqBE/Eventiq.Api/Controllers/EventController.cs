@@ -6,6 +6,7 @@ using Eventiq.Application.Interfaces.Repositories;
 using Eventiq.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Eventiq.Api.Controllers;
 
@@ -14,13 +15,15 @@ public class EventController:BaseController
 {
     protected readonly IMapper _mapper;
 
-    public EventController(IMapper mapper, IEventService eventService)
+    public EventController(IMapper mapper, IEventService eventService, ISeatService seatService)
     {
         _mapper = mapper;
         _eventService = eventService;
+        _seatService = seatService;
     }
 
     protected readonly IEventService _eventService;
+    protected readonly ISeatService _seatService;
     [Authorize(Policy = "Event.Create")]
     [HttpPost]
     public async Task<ActionResult<CreateEventResponse>> PostEvent([FromForm] CreateEventRequest request)
@@ -349,7 +352,7 @@ public class EventController:BaseController
         try
         {
             var userId = GetCurrentUserId();
-            var response = await _eventService.SyncSeatsAsync(userId, eventId, chartId, request.Seats, request.VenueDefinition);
+            var response = await _eventService.SyncSeatsAsync(userId, eventId, chartId, request.Seats, request.VenueDefinition, request.ChartKey);
             return Ok(response);
         }
         catch (UnauthorizedAccessException ex)
@@ -386,6 +389,94 @@ public class EventController:BaseController
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{eventId}/event-items/{eventItemId}/create-event-key")]
+    [Authorize(Policy = "Event.Update")]
+    public async Task<ActionResult<object>> CreateEventKeyForEventItem(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid eventItemId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var eventKey = await _eventService.CreateEventKeyForEventItemAsync(userId, eventId, eventItemId);
+            return Ok(new { eventKey, message = "Event key created successfully" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Retrieve Seats.io event object by event key (with eventId and eventItemId)
+    /// </summary>
+    [HttpGet("{eventId}/event-items/{eventItemId}/seats-io-event")]
+    [Authorize(Policy = "Event.Read")]
+    public async Task<ActionResult<SeatsIoEventDto>> GetSeatsIoEventByEventItem(
+        [FromRoute] Guid eventId,
+        [FromRoute] Guid eventItemId,
+        [FromQuery] string eventKey)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(eventKey))
+            {
+                return BadRequest(new { message = "Event key is required" });
+            }
+
+            // Retrieve event from Seats.io
+            var seatService = HttpContext.RequestServices.GetRequiredService<ISeatService>();
+            var seatsIoEvent = await seatService.RetrieveEventAsync(eventKey);
+            
+            return Ok(seatsIoEvent);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Retrieve Seats.io event object by event key only (no eventId required)
+    /// </summary>
+    [HttpGet("seats-io-event")]
+    public async Task<ActionResult<SeatsIoEventDto>> GetSeatsIoEvent([FromQuery] string eventKey)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(eventKey))
+            {
+                return BadRequest(new { message = "Event key is required" });
+            }
+
+            // Retrieve event from Seats.io
+            var seatService = HttpContext.RequestServices.GetRequiredService<ISeatService>();
+            var seatsIoEvent = await seatService.RetrieveEventAsync(eventKey);
+            
+            return Ok(seatsIoEvent);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -469,6 +560,107 @@ public class EventController:BaseController
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "Event.Update")]
+    [HttpGet("chart/{chartKey}/published-version")]
+    public async Task<ActionResult> GetPublishedChartVersion([FromRoute] string chartKey)
+    {
+        try
+        {
+            var seatService = HttpContext.RequestServices.GetRequiredService<ISeatService>();
+            var result = await seatService.RetrievePublishedChartVersionAsync(chartKey);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "Event.Update")]
+    [HttpPost("{eventId}/event-items/{eventItemId}/reprocess-seats")]
+    public async Task<ActionResult> ReProcessEventItemSeats([FromRoute] Guid eventId, [FromRoute] Guid eventItemId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var success = await _eventService.ReProcessEventItemSeatsAsync(userId, eventId, eventItemId);
+            if (success)
+            {
+                return Ok(new { message = "Event item seats re-processed successfully" });
+            }
+            return BadRequest(new { message = "Failed to re-process event item seats" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+
+
+    /// <summary>
+    /// Get event report detail from Seats.io
+    /// GET /api/event/event-report-detail?eventKey={eventKey}
+    /// Returns detailed information about all objects (seats) in the event including status, category, etc.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("event-report-detail")]
+    public async Task<ActionResult> GetEventReportDetail([FromQuery] string eventKey)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(eventKey))
+            {
+                return BadRequest(new { message = "eventKey is required" });
+            }
+
+            var report = await _seatService.GetEventReportDetailAsync(eventKey);
+            return Ok(report);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message, eventKey, stackTrace = ex.StackTrace });
+        }
+    }
+
+    /// <summary>
+    /// Get detailed chart report from Seats.io
+    /// GET /api/event/chart-report-detail?chartKey={chartKey}
+    /// Returns detailed information about all objects (seats) in the chart including category, type, etc.
+    /// Note: Chart reports show the structure of the chart, not the actual booking status (which is in events)
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("chart-report-detail")]
+    public async Task<ActionResult> GetChartReportDetail([FromQuery] string chartKey)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(chartKey))
+            {
+                return BadRequest(new { message = "chartKey is required" });
+            }
+
+            var report = await _seatService.GetChartReportDetailAsync(chartKey);
+            return Ok(report);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message, chartKey, stackTrace = ex.StackTrace });
         }
     }
 }

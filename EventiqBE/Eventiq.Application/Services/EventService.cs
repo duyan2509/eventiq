@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Text.Json;
 using AutoMapper;
 using Eventiq.Application.Dtos;
 using Eventiq.Application.Interfaces;
@@ -263,8 +264,6 @@ public class EventService:IEventService
             ticketClass.Name = dto.Name;
         if(dto.Price!=null)
             ticketClass.Price = dto.Price.Value;
-        if(dto.MaxPerUser!=null)
-            ticketClass.MaxPerUser = dto.MaxPerUser.Value;
         await _ticketClassRepository.UpdateAsync(ticketClass);
         return _mapper.Map<TicketClassDto>(ticketClass);
     }
@@ -358,6 +357,8 @@ public class EventService:IEventService
                 eventItem.Name = dto.Name;
             if (dto.Description != null)
                 eventItem.Description = dto.Description;
+            if (dto.MaxPerUser.HasValue)
+                eventItem.MaxPerUser = dto.MaxPerUser.Value;
             if (dto.ChartId != null)
             {
                 var chart = await _chartRepository.GetByIdAsync(dto.ChartId.Value);
@@ -421,6 +422,15 @@ public class EventService:IEventService
         var chart = _mapper.Map<Chart>(dto);
         chart.EventId= evnt.Id;
         chart.Key = await _seatService.CreateChartAsync(ticketClasses);
+        
+        foreach (var ticketClass in ticketClasses)
+        {
+            if (!string.IsNullOrEmpty(ticketClass.Color))
+            {
+                await _ticketClassRepository.UpdateAsync(ticketClass);
+            }
+        }
+        
         await _chartRepository.AddAsync(chart);
         return  _mapper.Map<ChartDto>(chart);
     }
@@ -435,8 +445,125 @@ public class EventService:IEventService
         if (chart == null)
             throw new Exception("Chart not found");
         chart.Name = dto.Name;
+        
+        // Update chart key if provided (from Seats.io designer)
+        bool chartKeyChanged = false;
+        if (!string.IsNullOrEmpty(dto.ChartKey) && dto.ChartKey != chart.Key)
+        {
+            chart.Key = dto.ChartKey;
+            chartKeyChanged = true;
+        }
+        
+        // If chart key was updated, fetch venue definition and objects from Seats.io
+        if (chartKeyChanged && !string.IsNullOrEmpty(chart.Key))
+        {
+            try
+            {
+                // Get venue definition from Seats.io
+                var venueDefinition = await _seatService.GetVenueDefinitionFromChartAsync(chart.Key);
+                if (!string.IsNullOrEmpty(venueDefinition))
+                {
+                    chart.VenueDefinition = venueDefinition;
+                    
+                    // Parse venue definition to extract objects and save to EventSeat
+                    await ProcessChartVenueDefinitionAsync(chart, venueDefinition);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail the update - venue definition can be fetched later
+                // In production, you might want to log this to a logging service
+                Console.WriteLine($"Warning: Failed to fetch venue definition for chart {chart.Key}: {ex.Message}");
+            }
+        }
+        
         await _chartRepository.UpdateAsync(chart);
         return  _mapper.Map<ChartDto>(chart);
+    }
+    
+    private async Task ProcessChartVenueDefinitionAsync(Chart chart, string venueDefinitionJson)
+    {
+        try
+        {
+            // Parse venue definition JSON
+            using var doc = System.Text.Json.JsonDocument.Parse(venueDefinitionJson);
+            var root = doc.RootElement;
+            
+            // Try to find objects in different possible locations
+            JsonElement? objectsElement = null;
+            
+            if (root.TryGetProperty("objects", out var objectsDirect))
+            {
+                objectsElement = objectsDirect;
+            }
+            else if (root.TryGetProperty("venue", out var venueElement))
+            {
+                if (venueElement.TryGetProperty("objects", out var venueObjects))
+                {
+                    objectsElement = venueObjects;
+                }
+            }
+            
+            if (!objectsElement.HasValue || objectsElement.Value.ValueKind != JsonValueKind.Object)
+            {
+                // No objects found in venue definition
+                return;
+            }
+            
+            var eventSeats = new List<EventSeat>();
+            
+            // Extract seats from venue definition
+            foreach (var objProperty in objectsElement.Value.EnumerateObject())
+            {
+                var obj = objProperty.Value;
+                
+                if (!obj.TryGetProperty("type", out var typeElement))
+                    continue;
+                
+                var objType = typeElement.GetString();
+                if (objType != "seat" && objType != "table")
+                    continue;
+                
+                var seat = new EventSeat
+                {
+                    ChartId = chart.Id,
+                    SeatKey = objProperty.Name,
+                    Label = obj.TryGetProperty("label", out var labelElement) 
+                        ? labelElement.GetString() 
+                        : objProperty.Name,
+                    Section = obj.TryGetProperty("section", out var sectionElement) 
+                        ? sectionElement.GetString() 
+                        : null,
+                    Row = obj.TryGetProperty("row", out var rowElement) 
+                        ? rowElement.GetString() 
+                        : null,
+                    Number = obj.TryGetProperty("number", out var numberElement) 
+                        ? numberElement.GetString() 
+                        : null,
+                    CategoryKey = obj.TryGetProperty("categoryKey", out var categoryKeyElement) 
+                        ? categoryKeyElement.GetString() 
+                        : (obj.TryGetProperty("category", out var categoryElement) 
+                            ? categoryElement.GetString() 
+                            : null),
+                    ExtraData = obj.TryGetProperty("extraData", out var extraDataElement) 
+                        ? extraDataElement.GetRawText() 
+                        : null
+                };
+                
+                eventSeats.Add(seat);
+            }
+            
+            // Bulk upsert seats
+            if (eventSeats.Any())
+            {
+                await _eventSeatRepository.BulkUpsertAsync(eventSeats);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail - seats can be processed later by worker
+            Console.WriteLine($"Warning: Failed to process venue definition for chart {chart.Id}: {ex.Message}");
+        }
     }
 
     public async Task<IEnumerable<ChartDto>> GetEventChartsAsync(Guid userId, Guid eventId)
@@ -485,7 +612,7 @@ public class EventService:IEventService
         return true;
     }
 
-    public async Task<SyncSeatsResponseDto> SyncSeatsAsync(Guid userId, Guid eventId, Guid chartId, IEnumerable<SeatInfoDto> seatsData, string? venueDefinition = null)
+    public async Task<SyncSeatsResponseDto> SyncSeatsAsync(Guid userId, Guid eventId, Guid chartId, IEnumerable<SeatInfoDto> seatsData, string? venueDefinition = null, string? chartKey = null)
     {
         var evnt = await _eventRepository.GetByIdAsync(eventId);
         if (evnt == null)
@@ -496,10 +623,21 @@ public class EventService:IEventService
         if (chart == null || chart.EventId != eventId)
             throw new Exception("Chart not found");
 
+        // Update chart key from Seats.io designer if provided
+        if (!string.IsNullOrEmpty(chartKey))
+        {
+            chart.Key = chartKey;
+        }
+        
         // Lưu venue definition vào chart nếu có
         if (!string.IsNullOrEmpty(venueDefinition))
         {
             chart.VenueDefinition = venueDefinition;
+        }
+        
+        // Update chart if any changes
+        if (!string.IsNullOrEmpty(chartKey) || !string.IsNullOrEmpty(venueDefinition))
+        {
             await _chartRepository.UpdateAsync(chart);
         }
 
@@ -806,6 +944,191 @@ public class EventService:IEventService
         };
     }
 
+    public async Task<CustomerEventListDto> GetPublishedEventsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var publishedEvents = await _eventRepository.GetAllAsync(1, int.MaxValue, EventStatus.Published);
+        
+        var upcomingEvents = new List<CustomerEventDto>();
+        var pastEvents = new List<CustomerEventDto>();
+        
+        foreach (var evnt in publishedEvents.Data)
+        {
+            // Tính giá vé thấp nhất từ TicketClasses
+            var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(evnt.Id);
+            decimal? lowestPrice = ticketClasses.Any() 
+                ? ticketClasses.Min(tc => tc.Price) 
+                : null;
+            
+            var customerEvent = new CustomerEventDto
+            {
+                Id = evnt.Id,
+                Name = evnt.Name,
+                Banner = evnt.Banner,
+                Start = evnt.Start,
+                LowestPrice = lowestPrice,
+                OrganizationName = evnt.Organization?.Name ?? "Unknown"
+            };
+            
+            if (evnt.Start >= now)
+            {
+                upcomingEvents.Add(customerEvent);
+            }
+            else
+            {
+                pastEvents.Add(customerEvent);
+            }
+        }
+        
+        // Sắp xếp: upcoming theo Start tăng dần, past theo Start giảm dần
+        upcomingEvents = upcomingEvents.OrderBy(e => e.Start).ToList();
+        pastEvents = pastEvents.OrderByDescending(e => e.Start).ToList();
+        
+        return new CustomerEventListDto
+        {
+            UpcomingEvents = upcomingEvents,
+            PastEvents = pastEvents
+        };
+    }
+
+    public async Task<CustomerEventDetailDto> GetPublishedEventDetailAsync(Guid eventId)
+    {
+        var evnt = await _eventRepository.GetDetailEventAsync(eventId);
+        if (evnt == null)
+            throw new KeyNotFoundException("Event not found");
+        
+        if (evnt.Status != EventStatus.Published)
+            throw new UnauthorizedAccessException("Event is not published");
+        
+        // Lấy EventItems với Chart
+        var eventItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
+        
+        var customerEventItems = new List<CustomerEventItemDto>();
+        
+        foreach (var item in eventItems)
+        {
+            // Tính giá vé thấp nhất cho EventItem này
+            // Lấy TicketClasses của event và filter theo CategoryKey nếu có
+            var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
+            decimal? lowestPrice = ticketClasses.Any() 
+                ? ticketClasses.Min(tc => tc.Price) 
+                : null;
+            
+            customerEventItems.Add(new CustomerEventItemDto
+            {
+                Id = item.Id,
+                Name = item.Name,
+                Description = item.Description,
+                Start = item.Start,
+                End = item.End,
+                LowestPrice = lowestPrice
+            });
+        }
+        
+        return new CustomerEventDetailDto
+        {
+            Id = evnt.Id,
+            Name = evnt.Name,
+            Description = evnt.Description,
+            Banner = evnt.Banner,
+            Start = evnt.Start,
+            EventAddress = _mapper.Map<EventAddressDto>(evnt.EventAddress),
+            OrganizationName = evnt.Organization?.Name ?? "Unknown",
+            EventItems = customerEventItems
+        };
+    }
+
+    public async Task<CustomerSeatMapDto> GetEventItemSeatMapAsync(Guid eventId, Guid eventItemId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new KeyNotFoundException("Event not found");
+        
+        if (evnt.Status != EventStatus.Published)
+            throw new UnauthorizedAccessException("Event is not published");
+        
+        var eventItem = await _eventItemRepository.GetByIdAsync(eventItemId);
+        if (eventItem == null)
+            throw new KeyNotFoundException("EventItem not found");
+        
+        if (eventItem.EventId != eventId)
+            throw new InvalidOperationException("EventItem does not belong to this event");
+        
+        var chart = await _chartRepository.GetByIdAsync(eventItem.ChartId);
+        if (chart == null)
+            throw new KeyNotFoundException("Chart not found");
+        
+        if (string.IsNullOrEmpty(chart.Key))
+            throw new InvalidOperationException("Chart key is not configured. Please configure the seat map first.");
+        
+        // Lấy EventSeats của chart này
+        var eventSeats = await _eventSeatRepository.GetByChartIdAsync(chart.Id);
+        
+        // Lấy EventSeatStates cho EventItem này
+        var seatStates = await _eventSeatStateRepository.GetByEventItemIdAsync(eventItemId);
+        var seatStateDict = seatStates.ToDictionary(ss => ss.EventSeatId, ss => ss);
+        
+        // Lấy TicketClasses của event
+        var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
+        
+        // Map TicketClass với CategoryKey của seat (nếu CategoryKey match với Name hoặc có mapping khác)
+        // Tạm thời, mỗi seat sẽ có giá từ TicketClass đầu tiên (hoặc có thể map theo CategoryKey nếu có)
+        var defaultPrice = ticketClasses.Any() ? ticketClasses.Min(tc => tc.Price) : (decimal?)null;
+        
+        var customerSeats = new List<CustomerSeatDto>();
+        
+        foreach (var seat in eventSeats)
+        {
+            var seatState = seatStateDict.GetValueOrDefault(seat.Id);
+            var status = seatState?.Status == SeatStatus.Paid ? "paid" : "free";
+            
+            // Tìm TicketClass tương ứng với CategoryKey của seat (nếu có)
+            // Nếu không có CategoryKey hoặc không match, dùng giá thấp nhất
+            decimal? price = defaultPrice;
+            if (!string.IsNullOrEmpty(seat.CategoryKey))
+            {
+                // Có thể map CategoryKey với TicketClass Name hoặc một field khác
+                // Tạm thời dùng giá thấp nhất
+                price = defaultPrice;
+            }
+            
+            customerSeats.Add(new CustomerSeatDto
+            {
+                EventSeatId = seat.Id,
+                SeatKey = seat.SeatKey,
+                Label = seat.Label,
+                Section = seat.Section,
+                Row = seat.Row,
+                Number = seat.Number,
+                CategoryKey = seat.CategoryKey,
+                Status = status,
+                Price = price
+            });
+        }
+        
+        var customerTicketClasses = ticketClasses.Select(tc => new CustomerTicketClassDto
+        {
+            Id = tc.Id,
+            Name = tc.Name,
+            Price = tc.Price,
+            Color = tc.Color
+        }).ToList();
+        
+        return new CustomerSeatMapDto
+        {
+            EventItemId = eventItem.Id,
+            EventItemName = eventItem.Name,
+            ChartId = chart.Id,
+            ChartKey = chart.Key,
+            EventKey = eventItem.EventKey, // Seats.io event key (preferred)
+            ChartName = chart.Name,
+            VenueDefinition = chart.VenueDefinition,
+            MaxPerUser = eventItem.MaxPerUser,
+            Seats = customerSeats,
+            TicketClasses = customerTicketClasses
+        };
+    }
+
     public async Task<EventSubmissionResponseDto> ApproveEventAsync(Guid adminUserId, Guid eventId, string? comment = null)
     {
         var evnt = await _eventRepository.GetByIdAsync(eventId);
@@ -837,7 +1160,60 @@ public class EventService:IEventService
         };
         await _eventApprovalHistoryRepository.AddAsync(history);
 
-        // Gửi message vào queue để xử lý tạo seat map và vé
+        // Tự động tạo event key cho tất cả eventItems TRƯỚC KHI gửi message vào queue
+        var eventItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
+        var createdEventKeys = new List<string>();
+        var failedEventItems = new List<string>();
+        var eventItemsWithValidKeys = new List<Guid>();
+
+        foreach (var eventItem in eventItems)
+        {
+            try
+            {
+                // Nếu event key đã tồn tại, verify nó có hợp lệ không
+                if (!string.IsNullOrEmpty(eventItem.EventKey))
+                {
+                    try
+                    {
+                        // Verify event key exists in Seats.io
+                        await _seatService.RetrieveEventAsync(eventItem.EventKey);
+                        eventItemsWithValidKeys.Add(eventItem.Id);
+                        continue; // Event key đã tồn tại và hợp lệ
+                    }
+                    catch
+                    {
+                        // Event key không hợp lệ, tạo lại
+                        eventItem.EventKey = null;
+                    }
+                }
+
+                var chart = await _chartRepository.GetByIdAsync(eventItem.ChartId);
+                if (chart == null)
+                {
+                    failedEventItems.Add($"{eventItem.Name} (Chart not found)");
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(chart.Key))
+                {
+                    failedEventItems.Add($"{eventItem.Name} (Chart key is not configured)");
+                    continue;
+                }
+
+                // Tạo event key từ chart
+                var eventKey = await CreateEventKeyForEventItemInternalAsync(eventItem, chart);
+                createdEventKeys.Add(eventKey);
+                eventItemsWithValidKeys.Add(eventItem.Id);
+            }
+            catch (Exception ex)
+            {
+                // Log error but continue with other eventItems
+                failedEventItems.Add($"{eventItem.Name} ({ex.Message})");
+            }
+        }
+
+        // Gửi message vào queue để worker xử lý seats
+        // Worker sẽ tự fallback sang chart nếu không có event key hoặc event key không hợp lệ
         var message = new EventProcessingMessage
         {
             EventId = eventId,
@@ -845,13 +1221,87 @@ public class EventService:IEventService
             RequestedAt = DateTime.UtcNow
         };
         await _messageQueueService.PublishEventProcessingMessageAsync(message);
+        // Logging is handled by InMemoryMessageQueueService
+
+        var messageText = "Event approval initiated.";
+        if (createdEventKeys.Count > 0)
+        {
+            messageText += $" Created {createdEventKeys.Count} event key(s) for event items.";
+        }
+        if (eventItemsWithValidKeys.Count > 0)
+        {
+            messageText += $" {eventItemsWithValidKeys.Count} event item(s) will be processed by background worker to fetch seats.";
+        }
+        if (failedEventItems.Count > 0)
+        {
+            messageText += $" Failed to create event keys for {failedEventItems.Count} event item(s): {string.Join(", ", failedEventItems)}.";
+        }
 
         return new EventSubmissionResponseDto
         {
             Success = true,
-            Message = "Event approval initiated. Seat map and tickets will be created by background worker.",
+            Message = messageText,
             NewStatus = EventStatus.InProgress
         };
+    }
+
+    private async Task<string> CreateEventKeyForEventItemInternalAsync(EventItem eventItem, Chart chart)
+    {
+        // Check if event key already exists
+        if (!string.IsNullOrEmpty(eventItem.EventKey))
+            return eventItem.EventKey;
+        
+        if (string.IsNullOrEmpty(chart.Key))
+            throw new InvalidOperationException("Chart key is not configured. Please configure the seat map first.");
+        
+        try
+        {
+            // Publish draft version of chart first to make it available for events
+            await _seatService.PublishDraftVersionAsync(chart.Key);
+            
+            // Create event key from eventItem ID to ensure uniqueness
+            var eventKey = $"event-{eventItem.Id}";
+            
+            // Create event in Seats.io from chart
+            // Note: Seats.io chart keys can have GUID-like format, so we don't validate format
+            // Let Seats.io API validate the chart key instead
+            var seatsIoEventKey = await _seatService.CreateEventFromChartAsync(chart.Key, eventKey);
+            
+            // Save event key to eventItem
+            eventItem.EventKey = seatsIoEventKey;
+            await _eventItemRepository.UpdateAsync(eventItem);
+            
+            return seatsIoEventKey;
+        }
+        catch (Exception ex)
+        {
+            // If Seats.io API returns error, it means chart key is invalid
+            throw new Exception($"Failed to create Seats.io event key for eventItem {eventItem.Id}. Chart key may be invalid or chart does not exist in Seats.io: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<string> CreateEventKeyForEventItemAsync(Guid userId, Guid eventId, Guid eventItemId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new KeyNotFoundException("Event not found");
+        
+        // Only allow creating event key for published events
+        if (evnt.Status != EventStatus.Published)
+            throw new InvalidOperationException($"Cannot create event key for event with status {evnt.Status}. Event must be published.");
+        
+        var eventItem = await _eventItemRepository.GetByIdAsync(eventItemId);
+        if (eventItem == null)
+            throw new KeyNotFoundException("EventItem not found");
+        
+        if (eventItem.EventId != eventId)
+            throw new InvalidOperationException("EventItem does not belong to this event");
+        
+        var chart = await _chartRepository.GetByIdAsync(eventItem.ChartId);
+        if (chart == null)
+            throw new KeyNotFoundException("Chart not found");
+        
+        return await CreateEventKeyForEventItemInternalAsync(eventItem, chart);
     }
 
     public async Task<EventSubmissionResponseDto> RejectEventAsync(Guid adminUserId, Guid eventId, string comment)
@@ -892,5 +1342,191 @@ public class EventService:IEventService
             Message = "Event rejected successfully",
             NewStatus = EventStatus.Draft
         };
+    }
+
+    public async Task<bool> ReProcessEventItemSeatsAsync(Guid userId, Guid eventId, Guid eventItemId)
+    {
+        var evnt = await _eventRepository.GetByIdAsync(eventId);
+        if (evnt == null)
+            throw new KeyNotFoundException("Event not found");
+
+        await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
+
+        var eventItem = await _eventItemRepository.GetByIdAsync(eventItemId);
+        if (eventItem == null)
+            throw new KeyNotFoundException("EventItem not found");
+
+        if (eventItem.EventId != eventId)
+            throw new InvalidOperationException("EventItem does not belong to this event");
+
+        var chart = await _chartRepository.GetByIdAsync(eventItem.ChartId);
+        if (chart == null)
+            throw new KeyNotFoundException("Chart not found");
+
+        try
+        {
+            // Nếu có eventKey, fetch từ event
+            if (!string.IsNullOrEmpty(eventItem.EventKey))
+            {
+                var seats = await _seatService.GetAllObjectsFromEventAsync(eventItem.EventKey);
+                if (seats.Any())
+                {
+                    await ProcessEventItemSeatsFromEventAsync(eventItem, seats);
+                    return true;
+                }
+            }
+
+            // Fallback: fetch từ chart
+            if (!string.IsNullOrEmpty(chart.VenueDefinition))
+            {
+                await ProcessEventItemSeatsFromChartAsync(eventItem, chart);
+                return true;
+            }
+            else if (!string.IsNullOrEmpty(chart.Key))
+            {
+                var venueDefinition = await _seatService.GetVenueDefinitionFromChartAsync(chart.Key);
+                if (!string.IsNullOrEmpty(venueDefinition))
+                {
+                    chart.VenueDefinition = venueDefinition;
+                    await _chartRepository.UpdateAsync(chart);
+                    await ProcessEventItemSeatsFromChartAsync(eventItem, chart);
+                    return true;
+                }
+            }
+
+            throw new InvalidOperationException("Cannot fetch seats: no eventKey or chart venue definition available");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to re-process event item seats: {ex.Message}", ex);
+        }
+    }
+
+    private async Task ProcessEventItemSeatsFromEventAsync(EventItem eventItem, IEnumerable<SeatInfoDto> seats)
+    {
+        var eventSeats = new List<EventSeat>();
+
+        foreach (var seatDto in seats)
+        {
+            var existingSeat = await _eventSeatRepository.GetByChartIdAndSeatKeyAsync(eventItem.ChartId, seatDto.SeatKey);
+            
+            if (existingSeat == null)
+            {
+                var seat = new EventSeat
+                {
+                    ChartId = eventItem.ChartId,
+                    SeatKey = seatDto.SeatKey,
+                    Label = seatDto.Label ?? seatDto.SeatKey,
+                    Section = seatDto.Section,
+                    Row = seatDto.Row,
+                    Number = seatDto.Number,
+                    CategoryKey = seatDto.CategoryKey,
+                    ExtraData = seatDto.ExtraData != null 
+                        ? System.Text.Json.JsonSerializer.Serialize(seatDto.ExtraData) 
+                        : null
+                };
+                eventSeats.Add(seat);
+            }
+            else
+            {
+                existingSeat.Label = seatDto.Label ?? existingSeat.Label;
+                existingSeat.Section = seatDto.Section ?? existingSeat.Section;
+                existingSeat.Row = seatDto.Row ?? existingSeat.Row;
+                existingSeat.Number = seatDto.Number ?? existingSeat.Number;
+                existingSeat.CategoryKey = seatDto.CategoryKey ?? existingSeat.CategoryKey;
+                if (seatDto.ExtraData != null)
+                {
+                    existingSeat.ExtraData = System.Text.Json.JsonSerializer.Serialize(seatDto.ExtraData);
+                }
+                eventSeats.Add(existingSeat);
+            }
+        }
+
+        if (eventSeats.Any())
+        {
+            await _eventSeatRepository.BulkUpsertAsync(eventSeats);
+        }
+
+        var allSeats = await _eventSeatRepository.GetByChartIdAsync(eventItem.ChartId);
+        foreach (var seat in allSeats)
+        {
+            var existingState = await _eventSeatStateRepository.GetByEventItemAndSeatAsync(eventItem.Id, seat.Id);
+            if (existingState == null)
+            {
+                var newState = new EventSeatState
+                {
+                    EventItemId = eventItem.Id,
+                    EventSeatId = seat.Id,
+                    Status = SeatStatus.Free
+                };
+                await _eventSeatStateRepository.AddAsync(newState);
+            }
+        }
+    }
+
+    private async Task ProcessEventItemSeatsFromChartAsync(EventItem eventItem, Chart chart)
+    {
+        if (string.IsNullOrEmpty(chart.VenueDefinition))
+            throw new InvalidOperationException("Chart venue definition is not available");
+
+        using var doc = System.Text.Json.JsonDocument.Parse(chart.VenueDefinition);
+        var root = doc.RootElement;
+
+        if (!root.TryGetProperty("objects", out var objectsElement))
+            throw new InvalidOperationException("Invalid venue definition: missing 'objects'");
+
+        var eventSeats = new List<EventSeat>();
+
+        foreach (var obj in objectsElement.EnumerateArray())
+        {
+            if (!obj.TryGetProperty("id", out var idElement))
+                continue;
+
+            var seatKey = idElement.GetString();
+            if (string.IsNullOrEmpty(seatKey))
+                continue;
+
+            var existingSeat = await _eventSeatRepository.GetByChartIdAndSeatKeyAsync(chart.Id, seatKey);
+            if (existingSeat == null)
+            {
+                var seat = new EventSeat
+                {
+                    ChartId = chart.Id,
+                    SeatKey = seatKey,
+                    Label = obj.TryGetProperty("label", out var labelElement) ? labelElement.GetString() : seatKey,
+                    Section = obj.TryGetProperty("section", out var sectionElement) ? sectionElement.GetString() : null,
+                    Row = obj.TryGetProperty("row", out var rowElement) ? rowElement.GetString() : null,
+                    Number = obj.TryGetProperty("number", out var numberElement) ? numberElement.GetString() : null,
+                    CategoryKey = obj.TryGetProperty("category", out var categoryElement) 
+                        ? categoryElement.GetString() 
+                        : null,
+                    ExtraData = obj.TryGetProperty("extraData", out var extraDataElement) 
+                        ? extraDataElement.GetRawText() 
+                        : null
+                };
+                eventSeats.Add(seat);
+            }
+        }
+
+        if (eventSeats.Any())
+        {
+            await _eventSeatRepository.BulkUpsertAsync(eventSeats);
+        }
+
+        var allSeats = await _eventSeatRepository.GetByChartIdAsync(chart.Id);
+        foreach (var seat in allSeats)
+        {
+            var existingState = await _eventSeatStateRepository.GetByEventItemAndSeatAsync(eventItem.Id, seat.Id);
+            if (existingState == null)
+            {
+                var newState = new EventSeatState
+                {
+                    EventItemId = eventItem.Id,
+                    EventSeatId = seat.Id,
+                    Status = SeatStatus.Free
+                };
+                await _eventSeatStateRepository.AddAsync(newState);
+            }
+        }
     }
 }

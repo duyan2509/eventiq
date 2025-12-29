@@ -7,8 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Eventiq.Api.Controllers;
 
-[Authorize(Policy = "Admin")]
-[Route("api/[controller]")]
+[Authorize]
 public class AdminController : BaseController
 {
     private readonly IEventService _eventService;

@@ -26,7 +26,7 @@ public interface IEventService
     Task<bool> DeleteChartAsync(Guid userId, Guid eventId, Guid chartId);
     
     // New methods for seat map sync and event management
-    Task<SyncSeatsResponseDto> SyncSeatsAsync(Guid userId, Guid eventId, Guid chartId, IEnumerable<SeatInfoDto> seatsData, string? venueDefinition = null);
+    Task<SyncSeatsResponseDto> SyncSeatsAsync(Guid userId, Guid eventId, Guid chartId, IEnumerable<SeatInfoDto> seatsData, string? venueDefinition = null, string? chartKey = null);
     Task<SeatMapViewDto> GetSeatMapForViewAsync(Guid userId, Guid eventId, Guid chartId, Guid? eventItemId, string userRole);
     Task<EventValidationDto> ValidateEventAsync(Guid userId, Guid eventId);
     Task<EventSubmissionResponseDto> SubmitEventAsync(Guid userId, Guid eventId);
@@ -38,5 +38,16 @@ public interface IEventService
     Task<PaginatedResult<EventPreview>> GetAllEventsAsync(int page = 1, int size = 10, EventStatus? status = null);
     Task<EventSubmissionResponseDto> ApproveEventAsync(Guid adminUserId, Guid eventId, string? comment = null);
     Task<EventSubmissionResponseDto> RejectEventAsync(Guid adminUserId, Guid eventId, string comment);
+    
+    // Customer/public methods
+    Task<CustomerEventListDto> GetPublishedEventsAsync();
+    Task<CustomerEventDetailDto> GetPublishedEventDetailAsync(Guid eventId);
+    Task<CustomerSeatMapDto> GetEventItemSeatMapAsync(Guid eventId, Guid eventItemId);
+    
+    // Create Seats.io event key for eventItem
+    Task<string> CreateEventKeyForEventItemAsync(Guid userId, Guid eventId, Guid eventItemId);
+    
+    // Re-process event item to fetch and save seats from Seats.io
+    Task<bool> ReProcessEventItemSeatsAsync(Guid userId, Guid eventId, Guid eventItemId);
 }
 
