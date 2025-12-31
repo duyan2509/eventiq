@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Typography } from 'antd';
 import { CalendarOutlined, DollarOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { adminAPI } from '../services/api';
+import RevenueReportSection from '../components/Admin/RevenueReportSection';
 
 const { Title } = Typography;
 
@@ -48,7 +49,7 @@ const AdminDashboard = () => {
                 <Col xs={24} sm={12} lg={6}>
                     <Card>
                         <Statistic
-                            title="Tổng số Event"
+                            title="Total Events"
                             value={stats.totalEvents}
                             prefix={<CalendarOutlined />}
                             loading={loading}
@@ -58,7 +59,7 @@ const AdminDashboard = () => {
                 <Col xs={24} sm={12} lg={6}>
                     <Card>
                         <Statistic
-                            title="Event đang chờ duyệt"
+                            title="Pending Events"
                             value={stats.pendingEvents}
                             prefix={<CheckCircleOutlined />}
                             valueStyle={{ color: '#1890ff' }}
@@ -69,7 +70,7 @@ const AdminDashboard = () => {
                 <Col xs={24} sm={12} lg={6}>
                     <Card>
                         <Statistic
-                            title="Event đã xuất bản"
+                            title="Published Events"
                             value={stats.publishedEvents}
                             prefix={<CheckCircleOutlined />}
                             valueStyle={{ color: '#52c41a' }}
@@ -80,7 +81,7 @@ const AdminDashboard = () => {
                 <Col xs={24} sm={12} lg={6}>
                     <Card>
                         <Statistic
-                            title="Tổng doanh thu"
+                            title="Total Revenue"
                             value={stats.totalRevenue}
                             prefix={<DollarOutlined />}
                             precision={0}
@@ -91,6 +92,9 @@ const AdminDashboard = () => {
                     </Card>
                 </Col>
             </Row>
+
+            {/* Revenue Report Section */}
+            <RevenueReportSection />
         </div>
     );
 };

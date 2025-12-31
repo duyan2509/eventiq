@@ -1,52 +1,73 @@
-import React from 'react';
-import { Typography, Card, Table, Space } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Typography, Tabs } from 'antd';
 import { DollarOutlined } from '@ant-design/icons';
+import { revenueAPI } from '../services/api';
+import dayjs from 'dayjs';
+import RevenueTab from '../components/Admin/RevenueTab';
+import PayoutTab from '../components/Admin/PayoutTab';
 
 const { Title } = Typography;
 
 const AdminRevenueManagement = () => {
-    // TODO: Implement revenue/checkout management
-    const columns = [
+    const [loading, setLoading] = useState(true);
+    const [reportData, setReportData] = useState(null);
+    const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
+    const [selectedYear, setSelectedYear] = useState(dayjs().year());
+
+    useEffect(() => {
+        fetchRevenueReport();
+    }, [selectedMonth, selectedYear]);
+
+    const fetchRevenueReport = async () => {
+        try {
+            setLoading(true);
+            const data = await revenueAPI.getAdminRevenueReport(selectedMonth, selectedYear);
+            setReportData(data);
+        } catch (error) {
+            console.error('Error fetching revenue report:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleMonthChange = (month) => {
+        setSelectedMonth(month);
+    };
+
+    const handleYearChange = (year) => {
+        setSelectedYear(year);
+    };
+
+    const tabItems = [
         {
-            title: 'Event',
-            dataIndex: 'eventName',
-            key: 'eventName',
-        },
-        {
-            title: 'Tổng doanh thu',
-            dataIndex: 'revenue',
             key: 'revenue',
-            render: (value) => `${value?.toLocaleString('vi-VN')} ₫`,
+            label: 'Revenue',
+            children: (
+                <RevenueTab
+                    reportData={reportData}
+                    loading={loading}
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    onMonthChange={handleMonthChange}
+                    onYearChange={handleYearChange}
+                />
+            ),
         },
         {
-            title: 'Số lượng vé đã bán',
-            dataIndex: 'ticketsSold',
-            key: 'ticketsSold',
-        },
-        {
-            title: 'Trạng thái',
-            dataIndex: 'status',
-            key: 'status',
+            key: 'payout',
+            label: 'Payout',
+            children: <PayoutTab />,
         },
     ];
 
     return (
-        <div>
+        <div style={{ padding: '24px' }}>
             <Title level={2}>
-                <DollarOutlined /> Quản lý Doanh thu / Checkout
+                Revenue Management
             </Title>
-            <Card>
-                <p>Chức năng đang được phát triển...</p>
-                <Table
-                    columns={columns}
-                    dataSource={[]}
-                    rowKey="id"
-                    pagination={false}
-                />
-            </Card>
+            <Tabs defaultActiveKey="revenue" items={tabItems} />
         </div>
     );
 };
 
 export default AdminRevenueManagement;
-
