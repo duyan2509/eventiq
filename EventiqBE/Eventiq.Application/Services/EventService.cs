@@ -524,13 +524,17 @@ public class EventService:IEventService
                 if (objType != "seat" && objType != "table")
                     continue;
                 
+                var seatLabel = obj.TryGetProperty("label", out var labelElement) 
+                    ? labelElement.GetString() 
+                    : objProperty.Name;
+                
+                if (string.IsNullOrEmpty(seatLabel))
+                    continue;
+                
                 var seat = new EventSeat
                 {
                     ChartId = chart.Id,
-                    SeatKey = objProperty.Name,
-                    Label = obj.TryGetProperty("label", out var labelElement) 
-                        ? labelElement.GetString() 
-                        : objProperty.Name,
+                    Label = seatLabel, // Label is now the unique identifier
                     Section = obj.TryGetProperty("section", out var sectionElement) 
                         ? sectionElement.GetString() 
                         : null,
@@ -642,23 +646,26 @@ public class EventService:IEventService
         }
 
         // Convert seats data from frontend (from Seats.io designer) to EventSeat entities
-        var eventSeats = seatsData.Select(s => new EventSeat
+        var eventSeats = seatsData.Select(s => 
         {
-            ChartId = chartId,
-            SeatKey = s.SeatKey,
-            Label = s.Label,
-            Section = s.Section,
-            Row = s.Row,
-            Number = s.Number,
-            CategoryKey = s.CategoryKey,
-            ExtraData = s.ExtraData != null ? System.Text.Json.JsonSerializer.Serialize(s.ExtraData) : null
+            var seatLabel = s.Label ?? s.SeatKey ?? throw new InvalidOperationException("Seat must have either Label or SeatKey");
+            return new EventSeat
+            {
+                ChartId = chartId,
+                Label = seatLabel, // Label is now the unique identifier
+                Section = s.Section,
+                Row = s.Row,
+                Number = s.Number,
+                CategoryKey = s.CategoryKey,
+                ExtraData = s.ExtraData != null ? System.Text.Json.JsonSerializer.Serialize(s.ExtraData) : null
+            };
         }).ToList();
 
         // Bulk upsert seats
         var existingSeats = await _eventSeatRepository.GetByChartIdAsync(chartId);
-        var existingSeatKeys = existingSeats.Select(s => s.SeatKey).ToHashSet();
+        var existingLabels = existingSeats.Select(s => s.Label).ToHashSet();
         
-        int newSeats = eventSeats.Count(s => !existingSeatKeys.Contains(s.SeatKey));
+        int newSeats = eventSeats.Count(s => !existingLabels.Contains(s.Label));
         
         await _eventSeatRepository.BulkUpsertAsync(eventSeats);
         
@@ -724,7 +731,7 @@ public class EventService:IEventService
                 seatDtos.Add(new SeatWithStatusDto
                 {
                     EventSeatId = seat.Id,
-                    SeatKey = seat.SeatKey,
+                    SeatKey = seat.Label, // Map Label to SeatKey for backward compatibility
                     Label = seat.Label,
                     Section = seat.Section,
                     Row = seat.Row,
@@ -743,7 +750,7 @@ public class EventService:IEventService
                 seatDtos.Add(new SeatWithStatusDto
                 {
                     EventSeatId = seat.Id,
-                    SeatKey = seat.SeatKey,
+                    SeatKey = seat.Label, // Map Label to SeatKey for backward compatibility
                     Label = seat.Label,
                     Section = seat.Section,
                     Row = seat.Row,
@@ -844,7 +851,7 @@ public class EventService:IEventService
             PreviousStatus = previousStatus,
             NewStatus = EventStatus.Pending,
             Comment = null,
-            ApprovedByUserId = null, // Chưa được approve, chỉ submit
+            ApprovedByUserId = null, 
             ApprovedByUserName = null,
             ActionDate = DateTime.UtcNow
         };
@@ -872,14 +879,13 @@ public class EventService:IEventService
         evnt.Status = EventStatus.Draft;
         await _eventRepository.UpdateAsync(evnt);
 
-        // Create approval history (cancelled by org, not an approval action)
         var history = new EventApprovalHistory
         {
             EventId = eventId,
             PreviousStatus = previousStatus,
             NewStatus = EventStatus.Draft,
             Comment = "Event cancelled by organizer",
-            ApprovedByUserId = null, // Không phải approval action
+            ApprovedByUserId = null, 
             ApprovedByUserName = null,
             ActionDate = DateTime.UtcNow
         };
@@ -894,7 +900,6 @@ public class EventService:IEventService
         if (evnt == null)
             throw new Exception("Event not found");
         
-        // Check permission: Org owner can view (Admin check will be in controller)
         await ValidateEventOwnerAsync(userId, [evnt.OrganizationId]);
 
         var histories = await _eventApprovalHistoryRepository.GetByEventIdAsync(eventId);
@@ -954,7 +959,6 @@ public class EventService:IEventService
         
         foreach (var evnt in publishedEvents.Data)
         {
-            // Tính giá vé thấp nhất từ TicketClasses
             var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(evnt.Id);
             decimal? lowestPrice = ticketClasses.Any() 
                 ? ticketClasses.Min(tc => tc.Price) 
@@ -980,7 +984,6 @@ public class EventService:IEventService
             }
         }
         
-        // Sắp xếp: upcoming theo Start tăng dần, past theo Start giảm dần
         upcomingEvents = upcomingEvents.OrderBy(e => e.Start).ToList();
         pastEvents = pastEvents.OrderByDescending(e => e.Start).ToList();
         
@@ -1000,15 +1003,12 @@ public class EventService:IEventService
         if (evnt.Status != EventStatus.Published)
             throw new UnauthorizedAccessException("Event is not published");
         
-        // Lấy EventItems với Chart
         var eventItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
         
         var customerEventItems = new List<CustomerEventItemDto>();
         
         foreach (var item in eventItems)
         {
-            // Tính giá vé thấp nhất cho EventItem này
-            // Lấy TicketClasses của event và filter theo CategoryKey nếu có
             var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
             decimal? lowestPrice = ticketClasses.Any() 
                 ? ticketClasses.Min(tc => tc.Price) 
@@ -1061,18 +1061,13 @@ public class EventService:IEventService
         if (string.IsNullOrEmpty(chart.Key))
             throw new InvalidOperationException("Chart key is not configured. Please configure the seat map first.");
         
-        // Lấy EventSeats của chart này
         var eventSeats = await _eventSeatRepository.GetByChartIdAsync(chart.Id);
         
-        // Lấy EventSeatStates cho EventItem này
         var seatStates = await _eventSeatStateRepository.GetByEventItemIdAsync(eventItemId);
         var seatStateDict = seatStates.ToDictionary(ss => ss.EventSeatId, ss => ss);
         
-        // Lấy TicketClasses của event
         var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
         
-        // Map TicketClass với CategoryKey của seat (nếu CategoryKey match với Name hoặc có mapping khác)
-        // Tạm thời, mỗi seat sẽ có giá từ TicketClass đầu tiên (hoặc có thể map theo CategoryKey nếu có)
         var defaultPrice = ticketClasses.Any() ? ticketClasses.Min(tc => tc.Price) : (decimal?)null;
         
         var customerSeats = new List<CustomerSeatDto>();
@@ -1082,20 +1077,16 @@ public class EventService:IEventService
             var seatState = seatStateDict.GetValueOrDefault(seat.Id);
             var status = seatState?.Status == SeatStatus.Paid ? "paid" : "free";
             
-            // Tìm TicketClass tương ứng với CategoryKey của seat (nếu có)
-            // Nếu không có CategoryKey hoặc không match, dùng giá thấp nhất
             decimal? price = defaultPrice;
             if (!string.IsNullOrEmpty(seat.CategoryKey))
             {
-                // Có thể map CategoryKey với TicketClass Name hoặc một field khác
-                // Tạm thời dùng giá thấp nhất
                 price = defaultPrice;
             }
             
             customerSeats.Add(new CustomerSeatDto
             {
                 EventSeatId = seat.Id,
-                SeatKey = seat.SeatKey,
+                SeatKey = seat.Label, // Map Label to SeatKey for backward compatibility
                 Label = seat.Label,
                 Section = seat.Section,
                 Row = seat.Row,
@@ -1140,7 +1131,6 @@ public class EventService:IEventService
 
         var previousStatus = evnt.Status;
         
-        // Cập nhật trạng thái event sang InProgress (đang xử lý tạo seat map và vé)
         evnt.Status = EventStatus.InProgress;
         await _eventRepository.UpdateAsync(evnt);
 
@@ -1160,7 +1150,6 @@ public class EventService:IEventService
         };
         await _eventApprovalHistoryRepository.AddAsync(history);
 
-        // Tự động tạo event key cho tất cả eventItems TRƯỚC KHI gửi message vào queue
         var eventItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
         var createdEventKeys = new List<string>();
         var failedEventItems = new List<string>();
@@ -1170,7 +1159,6 @@ public class EventService:IEventService
         {
             try
             {
-                // Nếu event key đã tồn tại, verify nó có hợp lệ không
                 if (!string.IsNullOrEmpty(eventItem.EventKey))
                 {
                     try
@@ -1178,11 +1166,10 @@ public class EventService:IEventService
                         // Verify event key exists in Seats.io
                         await _seatService.RetrieveEventAsync(eventItem.EventKey);
                         eventItemsWithValidKeys.Add(eventItem.Id);
-                        continue; // Event key đã tồn tại và hợp lệ
+                        continue;
                     }
                     catch
                     {
-                        // Event key không hợp lệ, tạo lại
                         eventItem.EventKey = null;
                     }
                 }
@@ -1200,7 +1187,6 @@ public class EventService:IEventService
                     continue;
                 }
 
-                // Tạo event key từ chart
                 var eventKey = await CreateEventKeyForEventItemInternalAsync(eventItem, chart);
                 createdEventKeys.Add(eventKey);
                 eventItemsWithValidKeys.Add(eventItem.Id);
@@ -1212,8 +1198,6 @@ public class EventService:IEventService
             }
         }
 
-        // Gửi message vào queue để worker xử lý seats
-        // Worker sẽ tự fallback sang chart nếu không có event key hoặc event key không hợp lệ
         var message = new EventProcessingMessage
         {
             EventId = eventId,
@@ -1256,15 +1240,10 @@ public class EventService:IEventService
         
         try
         {
-            // Publish draft version of chart first to make it available for events
             await _seatService.PublishDraftVersionAsync(chart.Key);
             
-            // Create event key from eventItem ID to ensure uniqueness
             var eventKey = $"event-{eventItem.Id}";
             
-            // Create event in Seats.io from chart
-            // Note: Seats.io chart keys can have GUID-like format, so we don't validate format
-            // Let Seats.io API validate the chart key instead
             var seatsIoEventKey = await _seatService.CreateEventFromChartAsync(chart.Key, eventKey);
             
             // Save event key to eventItem
@@ -1286,7 +1265,6 @@ public class EventService:IEventService
         if (evnt == null)
             throw new KeyNotFoundException("Event not found");
         
-        // Only allow creating event key for published events
         if (evnt.Status != EventStatus.Published)
             throw new InvalidOperationException($"Cannot create event key for event with status {evnt.Status}. Event must be published.");
         
@@ -1320,10 +1298,8 @@ public class EventService:IEventService
         evnt.Status = EventStatus.Draft;
         await _eventRepository.UpdateAsync(evnt);
 
-        // Get admin user info
         var adminUser = await _identityService.GetByIdAsync(adminUserId);
 
-        // Create approval history
         var history = new EventApprovalHistory
         {
             EventId = eventId,
@@ -1365,7 +1341,6 @@ public class EventService:IEventService
 
         try
         {
-            // Nếu có eventKey, fetch từ event
             if (!string.IsNullOrEmpty(eventItem.EventKey))
             {
                 var seats = await _seatService.GetAllObjectsFromEventAsync(eventItem.EventKey);
@@ -1376,7 +1351,6 @@ public class EventService:IEventService
                 }
             }
 
-            // Fallback: fetch từ chart
             if (!string.IsNullOrEmpty(chart.VenueDefinition))
             {
                 await ProcessEventItemSeatsFromChartAsync(eventItem, chart);
@@ -1408,15 +1382,15 @@ public class EventService:IEventService
 
         foreach (var seatDto in seats)
         {
-            var existingSeat = await _eventSeatRepository.GetByChartIdAndSeatKeyAsync(eventItem.ChartId, seatDto.SeatKey);
+            var seatLabel = seatDto.Label ?? seatDto.SeatKey ?? throw new InvalidOperationException("Seat must have either Label or SeatKey");
+            var existingSeat = await _eventSeatRepository.GetSeatByLabelAsync(eventItem.ChartId, seatLabel);
             
             if (existingSeat == null)
             {
                 var seat = new EventSeat
                 {
                     ChartId = eventItem.ChartId,
-                    SeatKey = seatDto.SeatKey,
-                    Label = seatDto.Label ?? seatDto.SeatKey,
+                    Label = seatLabel, // Label is now the unique identifier
                     Section = seatDto.Section,
                     Row = seatDto.Row,
                     Number = seatDto.Number,
@@ -1482,18 +1456,20 @@ public class EventService:IEventService
             if (!obj.TryGetProperty("id", out var idElement))
                 continue;
 
-            var seatKey = idElement.GetString();
-            if (string.IsNullOrEmpty(seatKey))
+            var label = obj.TryGetProperty("label", out var labelElement) 
+                ? labelElement.GetString() 
+                : idElement.GetString();
+            
+            if (string.IsNullOrEmpty(label))
                 continue;
 
-            var existingSeat = await _eventSeatRepository.GetByChartIdAndSeatKeyAsync(chart.Id, seatKey);
+            var existingSeat = await _eventSeatRepository.GetSeatByLabelAsync(chart.Id, label);
             if (existingSeat == null)
             {
                 var seat = new EventSeat
                 {
                     ChartId = chart.Id,
-                    SeatKey = seatKey,
-                    Label = obj.TryGetProperty("label", out var labelElement) ? labelElement.GetString() : seatKey,
+                    Label = label, // Label is now the unique identifier
                     Section = obj.TryGetProperty("section", out var sectionElement) ? sectionElement.GetString() : null,
                     Row = obj.TryGetProperty("row", out var rowElement) ? rowElement.GetString() : null,
                     Number = obj.TryGetProperty("number", out var numberElement) ? numberElement.GetString() : null,
