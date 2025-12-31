@@ -3,6 +3,7 @@ using System;
 using Eventiq.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Eventiq.Migrations.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251230080747_AddCheckoutNRemoveSeatKey")]
+    partial class AddCheckoutNRemoveSeatKey
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -492,145 +495,6 @@ namespace Eventiq.Migrations.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Organizations", "identity");
-                });
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.Payment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("BankCode")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CardType")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("CheckoutId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("EventItemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("GrossAmount")
-                        .HasColumnType("numeric");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsVerified")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("OrgAmount")
-                        .HasColumnType("numeric");
-
-                    b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PaymentId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("PlatformFee")
-                        .HasColumnType("numeric");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("VerifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("VnpResponseCode")
-                        .HasColumnType("text");
-
-                    b.Property<string>("VnpSecureHash")
-                        .HasColumnType("text");
-
-                    b.Property<string>("VnpTransactionNo")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CheckoutId")
-                        .IsUnique();
-
-                    b.HasIndex("EventItemId");
-
-                    b.ToTable("Payments", "identity");
-                });
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.Payout", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("EventItemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("GrossRevenue")
-                        .HasColumnType("numeric");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("OrgAmount")
-                        .HasColumnType("numeric");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PaidByUserId")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("PlatformFee")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("ProofImageUrl")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId");
-
-                    b.HasIndex("EventItemId");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.ToTable("Payouts", "identity");
                 });
 
             modelBuilder.Entity("Eventiq.Domain.Entities.Staff", b =>
@@ -1215,52 +1079,6 @@ namespace Eventiq.Migrations.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Eventiq.Domain.Entities.Payment", b =>
-                {
-                    b.HasOne("Eventiq.Domain.Entities.Checkout", "Checkout")
-                        .WithOne("Payment")
-                        .HasForeignKey("Eventiq.Domain.Entities.Payment", "CheckoutId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Eventiq.Domain.Entities.EventItem", "EventItem")
-                        .WithMany()
-                        .HasForeignKey("EventItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Checkout");
-
-                    b.Navigation("EventItem");
-                });
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.Payout", b =>
-                {
-                    b.HasOne("Eventiq.Domain.Entities.Event", "Event")
-                        .WithMany()
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Eventiq.Domain.Entities.EventItem", "EventItem")
-                        .WithMany()
-                        .HasForeignKey("EventItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Eventiq.Domain.Entities.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Event");
-
-                    b.Navigation("EventItem");
-
-                    b.Navigation("Organization");
-                });
-
             modelBuilder.Entity("Eventiq.Domain.Entities.Staff", b =>
                 {
                     b.HasOne("Eventiq.Domain.Entities.Event", "Event")
@@ -1421,11 +1239,6 @@ namespace Eventiq.Migrations.Migrations
                     b.Navigation("EventItems");
 
                     b.Navigation("EventSeats");
-                });
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.Checkout", b =>
-                {
-                    b.Navigation("Payment");
                 });
 
             modelBuilder.Entity("Eventiq.Domain.Entities.Event", b =>
