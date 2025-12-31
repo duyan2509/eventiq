@@ -14,7 +14,7 @@ import {
 } from 'antd';
 import { DollarOutlined, ArrowLeftOutlined, ShoppingCartOutlined, CloseOutlined } from '@ant-design/icons';
 import { SeatsioSeatingChart } from '@seatsio/seatsio-react';
-import { customerAPI } from '../services/api';
+import { customerAPI, checkoutAPI } from '../services/api';
 
 const { Title, Text } = Typography;
 
@@ -23,15 +23,15 @@ const CustomerSeatMap = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [seatMap, setSeatMap] = useState(null);
-  const [selectedSeats, setSelectedSeats] = useState([]);
   const [error, setError] = useState(null);
   const [chartRendering, setChartRendering] = useState(false);
+  const [chartInitialized, setChartInitialized] = useState(false);
+  const [chartInstance, setChartInstance] = useState(null);
+  const [selectionUpdateTrigger, setSelectionUpdateTrigger] = useState(0);
   const [clickedSeat, setClickedSeat] = useState(null);
   const [seatModalVisible, setSeatModalVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
-  const [bookedSeats, setBookedSeats] = useState([]);
-  const [holdSeats, setHoldSeats] = useState([]);
-  // Seats that are already purchased (paid) - shown as booked/red
+
 
   useEffect(() => {
     if (eventId && eventItemId) {
@@ -51,20 +51,31 @@ const CustomerSeatMap = () => {
     }
   }, [chartRendering]);
 
+  // Update chart instance when selection changes to get latest selectedObjects
+  useEffect(() => {
+    if (chartInstance && selectionUpdateTrigger > 0) {
+      // Small delay to ensure chart has updated its selectedObjects
+      const timeout = setTimeout(() => {
+        if (chartInstance) {
+          setChartInstance({ ...chartInstance });
+        }
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [selectionUpdateTrigger]);
+
   const fetchSeatMap = async () => {
     try {
       setLoading(true);
       setError(null);
+      setChartInitialized(false); // Reset when fetching new seat map
       const data = await customerAPI.getEventItemSeatMap(eventId, eventItemId);
       console.log('Seat map data received:', data);
       console.log('ChartKey:', data.chartKey);
       console.log('Public Key:', import.meta.env.VITE_SEAT_IO_PUBLIC_KEY);
 
-      // Add mock data for testing: 2 random seats with different statuses
-      // 1 seat with 'paid' status (already purchased) - shown as booked/red
-      // 1 seat with 'hold' status (currently being paid) - shown as hold/yellow
-      // This modifies the status of existing seats for frontend testing
-      addMockSeatsForTesting(data);
+      setSeatMap(data);
+
 
     } catch (error) {
       console.error('Error fetching seat map:', error);
@@ -74,143 +85,44 @@ const CustomerSeatMap = () => {
     }
   };
 
-  // Helper function to add mock seats for testing frontend
-  // This simulates seats that are already purchased or being paid
-  // Changes status of 2 random free seats to 'paid' and 'hold' for testing
-  const addMockSeatsForTesting = (seatMapData) => {
-    if (!seatMapData || !seatMapData.seats || seatMapData.seats.length === 0) {
-      console.warn('No seats found in seat map data');
+
+
+  // Helper function to map seat keys from chart.selectedObjects to seat data with prices
+  const getSelectedSeatsData = () => {
+    if (!chartInstance || !chartInstance.selectedObjects || chartInstance.selectedObjects.length === 0) {
       return [];
     }
+    return chartInstance.selectedObjects.map(seatKey => {
+      const seat = seatMap?.seats.find((s) => s.seatKey === seatKey);
+      
+      let price = 0;
+      let seatCategory = null;
+      
+      if (!seatCategory) {
+        seatCategory = seat?.categoryKey || seat?.category;
+        console.log('Seat category:', seatCategory);
+      }      
+      console.log('Chart instance:', chartInstance);
+      price = chartInstance?.config?.pricing?.prices.
+        find(p => p.category === seatCategory)?.price;
 
-    // Get random seats from existing seats that are free
-    const availableSeats = seatMapData.seats.filter(s => s.status === 'free');
-    if (availableSeats.length < 2) {
-      console.warn('Not enough free seats to create mock data');
-      return [];
-    }
+      console.log('Price:', price);
 
-    // Randomly select 2 different seats
-    const shuffled = [...availableSeats].sort(() => 0.5 - Math.random());
-    const selectedSeats = shuffled.slice(0, 2);
-
-    // Update status of selected seats to simulate different states
-    // This modifies the original seats array
-    selectedSeats[0].status = 'reservedByToken'; // Already purchased - will show as booked/red
-    selectedSeats[1].status = 'booked'; // Currently being paid - will show as hold/yellow
-
-    console.log('Mock seats for testing (status changed):', {
-      paid: { seatKey: selectedSeats[0].seatKey, status: selectedSeats[0].status },
-      hold: { seatKey: selectedSeats[1].seatKey, status: selectedSeats[1].status }
-    });
-    setSeatMap(seatMapData);
-    setBookedSeats(seatMapData.seats
-      .filter((s) => s.status === 'booked')
-      .map((s) => s.label));
-
-    // Seats that are currently being paid (hold) - shown as hold/yellow
-    // These are seats in the checkout process, reserved temporarily
-    setHoldSeats(seatMapData.seats
-      .filter((s) => s.status === 'reservedByToken')
-      .map((s) => s.label))
-    // Return empty array since we modified the original seats
-    return [];
-  };
-
-  // Helper function to map Seats.io object to our seat format
-  const mapSeatObject = (obj) => {
-    const seatId = obj.id || obj.objectId; // Support both 'id' and 'objectId'
-    const seat = seatMap?.seats.find((s) => s.seatKey === seatId);
-
-    // Get price from multiple sources
-    const seatPrice = obj.price
-      || obj.pricing?.price
-      || obj.category?.pricing?.price
-      || seat?.price
-      || 0;
-
-    return {
-      seatKey: seatId,
-      label: obj.label || obj.labels?.own || seatId,
-      price: Number(seatPrice), // Ensure it's a number
-      categoryKey: obj.categoryKey || obj.category?.key,
-      status: seat?.status || 'available',
-      ...seat,
-    };
-  };
-
-  const handleObjectSelected = (selectedObject) => {
-    console.log('=== onObjectSelected called ===');
-    console.log('Raw selectedObject:', selectedObject);
-
-    // Handle both single object and array cases
-    const selectedArray = Array.isArray(selectedObject)
-      ? selectedObject
-      : selectedObject
-        ? [selectedObject]
-        : [];
-
-    console.log('Selected array:', selectedArray);
-
-    // Map new seats from Seats.io
-    const newSeats = selectedArray.map(mapSeatObject);
-    console.log('New seats mapped:', newSeats);
-
-    // Merge with existing selected seats: add new ones, keep existing ones
-    setSelectedSeats(prevSeats => {
-      console.log('Previous selectedSeats:', prevSeats);
-
-      // Create a map of existing seats by seatKey for quick lookup
-      const existingSeatsMap = new Map(prevSeats.map(s => [s.seatKey, s]));
-
-      // Add new seats (will overwrite if already exists, which is fine)
-      newSeats.forEach(seat => {
-        existingSeatsMap.set(seat.seatKey, seat);
+      console.log('Result:',{
+        seatKey: seatKey,
+        label: seat?.label || seatKey,
+        price: Number(price),
+        categoryKey: seatCategory,
+        status: seat?.status || 'available',
+        ...seat,
       });
-
-      // Convert back to array
-      const updatedSeats = Array.from(existingSeatsMap.values());
-
-      console.log('=== Merged selected seats ===', {
-        previous: prevSeats.length,
-        new: newSeats.length,
-        final: updatedSeats.length,
-        seats: updatedSeats.map(s => ({ key: s.seatKey, label: s.label, price: s.price }))
-      });
-
-      return updatedSeats;
-    });
-  };
-
-  const handleObjectDeselected = (deselectedObject) => {
-    console.log('=== onObjectDeselected called ===');
-    console.log('Raw deselectedObject:', deselectedObject);
-
-    // Handle both single object and array cases
-    const deselectedArray = Array.isArray(deselectedObject)
-      ? deselectedObject
-      : deselectedObject
-        ? [deselectedObject]
-        : [];
-
-    // Get seat IDs to remove
-    const seatIdsToRemove = deselectedArray.map(obj => obj.id || obj.objectId);
-
-    console.log('Seat IDs to remove:', seatIdsToRemove);
-    console.log('Current selectedSeats before removal:', selectedSeats);
-
-    // Remove deselected seats
-    setSelectedSeats(prevSeats => {
-      const updatedSeats = prevSeats.filter(s => !seatIdsToRemove.includes(s.seatKey));
-
-      console.log('=== Updated selected seats after removal ===', {
-        previous: prevSeats.length,
-        removed: seatIdsToRemove.length,
-        final: updatedSeats.length,
-        seats: updatedSeats
-      });
-
-      return updatedSeats;
+      return {
+        ...seat,
+        label: seat?.label || seatKey,
+        price: Number(price),
+        categoryKey: seatCategory,
+        status: seat?.status || 'available',
+      };
     });
   };
 
@@ -247,19 +159,44 @@ const CustomerSeatMap = () => {
     setSeatModalVisible(true);
   };
 
-  const handleProceedToCheckout = () => {
-    if (selectedSeats.length === 0) {
+  const handleProceedToCheckout = async () => {
+    const selectedSeatsData = getSelectedSeatsData();
+    if (selectedSeatsData.length === 0) {
+      console.warn('No seats selected, cannot proceed to checkout');
       return;
     }
-    // Save selected seats to localStorage
-    localStorage.setItem('selectedSeats', JSON.stringify(selectedSeats));
-    localStorage.setItem('eventId', eventId);
-    localStorage.setItem('eventItemId', eventItemId);
-    navigate('/payment');
+    
+    console.log('Proceeding to checkout with seats:', selectedSeatsData);
+    
+    try {
+      // Call backend to create checkout session
+      const seatIds = selectedSeatsData.map(s => s.seatKey);
+      const checkout = await checkoutAPI.createCheckout(eventItemId, seatIds);
+      
+      console.log('Checkout created:', checkout);
+      
+      // Save checkout info to localStorage for payment page
+      localStorage.setItem('checkoutId', checkout.id);
+      localStorage.setItem('selectedSeats', JSON.stringify(selectedSeatsData));
+      localStorage.setItem('eventId', eventId);
+      localStorage.setItem('eventItemId', eventItemId);
+      
+      // Navigate to payment page
+      navigate('/payment');
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create checkout. Some seats may already be taken.';
+      setError(errorMessage);
+    }
   };
 
   const getTotalPrice = () => {
-    return selectedSeats.reduce((sum, seat) => sum + (seat.price || 0), 0);
+    const selectedSeatsData = getSelectedSeatsData();
+    return selectedSeatsData.reduce((sum, seat) => sum + (seat.price || 0), 0);
+  };
+
+  const getSelectedSeatsCount = () => {
+    return chartInstance?.selectedObjects?.length || 0;
   };
 
   const formatPrice = (price) => {
@@ -377,10 +314,6 @@ const CustomerSeatMap = () => {
   }
 
 
-  // Prepare selected objects (for user's current selection)
-  // This is different from hold - these are seats the current user is selecting
-  const selectedObjects = selectedSeats.map(s => s.seatKey);
-
   // Use EventKey if available (preferred), otherwise fallback to ChartKey
   const eventKey = seatMap.eventKey || seatMap.chartKey;
 
@@ -450,9 +383,6 @@ const CustomerSeatMap = () => {
     finalEventKey: eventKey,
     isGuid: isGuidFormat,
     hasVenueDefinition: !!venueDefinition,
-    bookedSeats: bookedSeats,
-    selectedObjects: selectedObjects,
-    bookedSeatsCount: bookedSeats.length,
     totalSeats: seatMap.seats.length,
     pricingConfig: pricingConfig,
   });
@@ -489,8 +419,7 @@ const CustomerSeatMap = () => {
             </Title>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-
-            {selectedSeats.length > 0 && (
+            {getSelectedSeatsCount() > 0 && (
               <Text strong style={{ color: '#f5222d', fontSize: 16 }}>
                 <DollarOutlined /> {formatPrice(getTotalPrice())}
               </Text>
@@ -507,7 +436,7 @@ const CustomerSeatMap = () => {
         overflow: 'hidden',
         minHeight: 0
       }}>
-        {chartRendering && (
+        {chartRendering && !chartInitialized && (
           <div style={{
             position: 'absolute',
             top: '50%',
@@ -525,8 +454,6 @@ const CustomerSeatMap = () => {
             {...(venueDefinition && !usingEventKey
               ? { event: venueDefinition }
               : { event: eventKey })}
-            bookedObjects={[...bookedSeats, ...holdSeats]}
-            selectedObjects={selectedObjects}
             {...(seatMap.maxPerUser > 0 || seatMap.MaxPerUser > 0
               ? {
                 maxSelectedObjects: (seatMap.maxPerUser || seatMap.MaxPerUser || 0) // Total max seats per user for this event item
@@ -537,18 +464,30 @@ const CustomerSeatMap = () => {
             language="en"
             onRenderStarted={(chart) => {
               console.log('Seats.io chart render started', chart);
-              console.log(chart.selectedObjects);
+              console.log("eventiq", chart.selectedObjects);
+              setChartInstance(chart); // Save chart instance to access selectedObjects
 
-              setChartRendering(true);
+              // Only show spinner if chart hasn't been initialized yet
+              if (!chartInitialized) {
+                setChartRendering(true);
+              }
               setError(null); // Clear any previous errors
-
             }}
-            onObjectSelected={handleObjectSelected}
-            onObjectDeselected={handleObjectDeselected}
+            onObjectSelected={(selectedObject) => {
+              // Trigger re-render to update UI with new selectedObjects
+              setSelectionUpdateTrigger(prev => prev + 1);
+            }}
+            onObjectDeselected={(deselectedObject) => {
+              // Trigger re-render to update UI with new selectedObjects
+              setSelectionUpdateTrigger(prev => prev + 1);
+            }}
             onObjectClick={handleObjectClick}
             onChartRendered={(chart) => {
               console.log('Seats.io chart rendered successfully', chart);
+              console.log("eventiq selectedObjects after render:", chart.selectedObjects);
+              setChartInstance(chart); // Save chart instance
               setChartRendering(false);
+              setChartInitialized(true); // Mark chart as initialized
               setError(null); // Clear any errors on success
             }}
             onChartRenderingFailed={(error) => {
@@ -563,6 +502,7 @@ const CustomerSeatMap = () => {
                 usingEventKey: usingEventKey
               });
               setChartRendering(false);
+              setChartInitialized(false); // Reset so spinner can show on retry
               // Try to extract error message from various possible locations
               const errorMessage = error?.message
                 || error?.error?.message
@@ -571,14 +511,14 @@ const CustomerSeatMap = () => {
               setError(errorMessage);
             }}
             showLegend={true}
-
+            maxSelectedObjects={seatMap.maxPerUser || seatMap.MaxPerUser || 0}
 
           />
         )}
       </div>
 
       {/* Floating Checkout Button and Cart */}
-      {selectedSeats.length > 0 && (
+      {getSelectedSeatsCount() > 0 && (
         <>
           {/* Cart Summary - Visible when cartVisible is true */}
           {cartVisible && (
@@ -609,11 +549,11 @@ const CustomerSeatMap = () => {
               </div>
               <div style={{ marginBottom: 8 }}>
                 <Text>Selected Seats: </Text>
-                <Text strong>{selectedSeats.length}</Text>
+                <Text strong>{getSelectedSeatsCount()}</Text>
               </div>
               <div style={{ marginBottom: 8, maxHeight: 150, overflowY: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4, backgroundColor: '#fafafa' }}>
-                {selectedSeats.length > 0 ? (
-                  selectedSeats.map((seat, index) => (
+                {getSelectedSeatsData().length > 0 ? (
+                  getSelectedSeatsData().map((seat, index) => (
                     <div key={seat.seatKey || index} style={{
                       marginBottom: 4,
                       fontSize: 12,
@@ -659,87 +599,14 @@ const CustomerSeatMap = () => {
             type="primary"
             style={{ right: 24, bottom: 24 }}
             icon={<ShoppingCartOutlined />}
-            tooltip={cartVisible ? 'Hide cart' : `Show cart (${selectedSeats.length} seat(s))`}
-            badge={{ count: selectedSeats.length, overflowCount: 99 }}
+            tooltip={cartVisible ? 'Hide cart' : `Show cart (${getSelectedSeatsCount()} seat(s))`}
+            badge={{ count: getSelectedSeatsCount(), overflowCount: 99 }}
             onClick={() => setCartVisible(!cartVisible)}
           />
         </>
       )}
 
-      {/* Seat Information Modal */}
-      <Modal
-        title="Seat Information"
-        open={seatModalVisible}
-        onCancel={() => setSeatModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setSeatModalVisible(false)}>
-            Close
-          </Button>,
-          clickedSeat?.status === 'available' && (
-            <Button
-              key="select"
-              type="primary"
-              onClick={() => {
-                // Add to selected seats if not already selected
-                const isAlreadySelected = selectedSeats.some(
-                  (s) => s.seatKey === clickedSeat.seatKey
-                );
-                if (!isAlreadySelected) {
-                  setSelectedSeats([...selectedSeats, clickedSeat]);
-                }
-                setSeatModalVisible(false);
-              }}
-            >
-              Select This Seat
-            </Button>
-          ),
-        ].filter(Boolean)}
-        width={500}
-      >
-        {clickedSeat && (
-          <Descriptions column={1} bordered>
-            <Descriptions.Item label="Seat Label">
-              <Text strong>{clickedSeat.label || clickedSeat.seatKey}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Price">
-              <Text strong style={{ color: '#f5222d', fontSize: 18 }}>
-                <DollarOutlined /> {formatPrice(clickedSeat.price || 0)}
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag
-                color={
-                  clickedSeat.status === 'available'
-                    ? 'green'
-                    : clickedSeat.status === 'paid'
-                      ? 'red'
-                      : clickedSeat.status === 'hold'
-                        ? 'orange'
-                        : 'default'
-                }
-              >
-                {clickedSeat.status === 'available'
-                  ? 'Available'
-                  : clickedSeat.status === 'paid'
-                    ? 'Sold'
-                    : clickedSeat.status === 'hold'
-                      ? 'On Hold'
-                      : clickedSeat.status || 'Unknown'}
-              </Tag>
-            </Descriptions.Item>
-            {clickedSeat.categoryKey && (
-              <Descriptions.Item label="Category">
-                <Tag>{clickedSeat.categoryKey}</Tag>
-              </Descriptions.Item>
-            )}
-            {clickedSeat.seatKey && (
-              <Descriptions.Item label="Seat Key">
-                <Text code>{clickedSeat.seatKey}</Text>
-              </Descriptions.Item>
-            )}
-          </Descriptions>
-        )}
-      </Modal>
+    
     </div>
   );
 };

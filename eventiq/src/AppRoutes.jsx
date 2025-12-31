@@ -21,6 +21,8 @@ import CustomerEventList from './pages/CustomerEventList';
 import CustomerEventDetail from './pages/CustomerEventDetail';
 import CustomerSeatMap from './pages/CustomerSeatMap';
 import PaymentSkeleton from './pages/PaymentSkeleton';
+import OrgRevenueReport from './pages/OrgRevenueReport';
+import MyTickets from './pages/MyTickets';
 const AppRoutes = () => (
   <Router>
     <Routes>
@@ -72,6 +74,7 @@ const AppRoutes = () => (
         <Route path="/events/:eventId" element={<CustomerEventDetail />} />
         <Route path="/payment" element={<PaymentSkeleton />} />
         <Route path="/event/:eventId" element={<EventDetail />} />
+        <Route path="/my-tickets" element={<MyTickets />} />
         <Route
           path="/org"
           element={
@@ -109,6 +112,14 @@ const AppRoutes = () => (
           element={
             <ProtectedRoute roles="Org">
               <StaffManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/org/:orgId/event/:eventId/revenue"
+          element={
+            <ProtectedRoute roles="Org">
+              <OrgRevenueReport />
             </ProtectedRoute>
           }
         />
