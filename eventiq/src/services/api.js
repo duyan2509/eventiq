@@ -426,4 +426,137 @@ export const customerAPI = {
   },
 };
 
+export const checkoutAPI = {
+  createCheckout: async (eventItemId, seatIds) => {
+    const response = await api.post('/checkout', {
+      eventItemId,
+      seatIds,
+    });
+    return response.data;
+  },
+
+  confirmCheckout: async (checkoutId) => {
+    const response = await api.post(`/checkout/${checkoutId}/confirm`);
+    return response.data;
+  },
+
+  cancelCheckout: async (checkoutId) => {
+    const response = await api.post(`/checkout/${checkoutId}/cancel`);
+    return response.data;
+  },
+
+  getCheckout: async (checkoutId) => {
+    const response = await api.get(`/checkout/${checkoutId}`);
+    return response.data;
+  },
+};
+
+export const paymentAPI = {
+  createPaymentUrl: async (checkoutId, returnUrl) => {
+    const response = await api.post('/payment/create-url', {
+      checkoutId,
+      returnUrl,
+    });
+    return response.data;
+  },
+
+  getPayment: async (paymentId) => {
+    const response = await api.get(`/payment/${paymentId}`);
+    return response.data;
+  },
+};
+
+export const revenueAPI = {
+  getAdminRevenueReport: async (month, year) => {
+    const params = {};
+    if (month) params.month = month;
+    if (year) params.year = year;
+    const response = await api.get('/revenue/admin', { params });
+    return response.data;
+  },
+
+  getOrgRevenueReport: async (eventId, organizationId) => {
+    const response = await api.get(`/revenue/org/${eventId}`, {
+      params: { organizationId }
+    });
+    return response.data;
+  },
+
+  getOrgRevenueStats: async (eventId, organizationId) => {
+    const response = await api.get(`/revenue/org/${eventId}/stats`, {
+      params: { organizationId }
+    });
+    return response.data;
+  },
+
+  getOrgRevenueTable: async (eventId, organizationId, eventItemId, ticketClassId, page = 1, size = 10) => {
+    const params = { organizationId, page, size };
+    if (eventItemId) params.eventItemId = eventItemId;
+    if (ticketClassId) params.ticketClassId = ticketClassId;
+    const response = await api.get(`/revenue/org/${eventId}/table`, { params });
+    return response.data;
+  },
+
+  getUserTickets: async () => {
+    const response = await api.get('/revenue/user/tickets');
+    return response.data;
+  },
+};
+
+export const payoutAPI = {
+  getPendingPayouts: async () => {
+    const response = await api.get('/payout/pending');
+    return response.data;
+  },
+
+  getPayouts: async (status, month, year, page = 1, size = 10) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (month) params.append('month', month);
+    if (year) params.append('year', year);
+    params.append('page', page);
+    params.append('size', size);
+    const response = await api.get(`/payout?${params.toString()}`);
+    return response.data;
+  },
+
+  getPayoutByEventItemId: async (eventItemId) => {
+    const response = await api.get(`/payout/event-item/${eventItemId}`);
+    return response.data;
+  },
+
+  getPayoutHistoryByOrganization: async (organizationId) => {
+    const response = await api.get(`/payout/organization/${organizationId}/history`);
+    return response.data;
+  },
+
+  getPendingPayoutEventsCount: async (month, year) => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month);
+    if (year) params.append('year', year);
+    const response = await api.get(`/payout/pending-events-count?${params.toString()}`);
+    return response.data;
+  },
+
+  updatePayout: async (payoutId, data) => {
+    const formData = new FormData();
+    if (data.proofImage) {
+      formData.append('ProofImage', data.proofImage);
+    }
+    if (data.notes) {
+      formData.append('Notes', data.notes);
+    }
+    if (data.proofImageUrl) {
+      formData.append('ProofImageUrl', data.proofImageUrl);
+    }
+    
+    const response = await api.put(`/payout/${payoutId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+};
+
 export default api;
