@@ -28,6 +28,16 @@ public static class DependencyInjection
         (
             config["SeatsIo:SecretKey"]));
         services.AddScoped<IMessageQueueService, InMemoryMessageQueueService>();
+        
+        // Redis service
+        var redisConnectionString = config["Redis:ConnectionString"] ?? "localhost:6379";
+        services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+            StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString));
+        services.AddScoped<IRedisService, RedisService>();
+        
+        // VNPAY service
+        services.AddScoped<IVnPayService, VnPayService>();
+        
         return services;
     }
     public static IServiceCollection AddPersistence(this IServiceCollection services,IConfiguration config)
@@ -46,6 +56,10 @@ public static class DependencyInjection
         services.AddScoped<IEventTaskRepository, EventTaskRepository>();
         services.AddScoped<ITaskOptionRepository, TaskOptionRepository>();
         services.AddScoped<IStaffTaskAssignmentRepository, StaffTaskAssignmentRepository>();
+        services.AddScoped<ICheckoutRepository, CheckoutRepository>();
+        services.AddScoped<ITicketRepository, TicketRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<IPayoutRepository, PayoutRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         return services;
     }

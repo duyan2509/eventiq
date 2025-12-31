@@ -1,4 +1,5 @@
 ﻿using System.Net.Sockets;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Eventiq.Domain.Entities;
 using Eventiq.Infrastructure.Identity;
@@ -25,6 +26,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     private DbSet<EventTask> EventTasks { get; set; }
     private DbSet<TaskOption> TaskOptions { get; set; }
     private DbSet<StaffTaskAssignment> StaffTaskAssignments { get; set; }
+    private DbSet<Checkout> Checkouts { get; set; }
+    private DbSet<Payment> Payments { get; set; }
+    private DbSet<Payout> Payouts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,7 +58,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .Entity<EventSeatState>()
             .HasIndex(x => new { x.EventItemId, x.EventSeatId })
             .IsUnique();
-        modelBuilder.Entity<EventSeat>().HasIndex(x => new { x.ChartId, x.SeatKey }).IsUnique();
+        modelBuilder.Entity<EventSeat>().HasIndex(x => new { x.ChartId, x.Label }).IsUnique();
         
         // Staff and Task indexes
         modelBuilder.Entity<Staff>().HasIndex(s => new { s.EventId, s.UserId }).IsUnique();
@@ -94,14 +98,54 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             {
                 case EntityState.Added:
                     entry.Entity.CreatedAt = DateTime.UtcNow;
+                    // Ensure all DateTime properties are UTC
+                    EnsureUtcDateTime(entry.Entity);
                     break;
                 case EntityState.Modified:
                     entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    // Ensure all DateTime properties are UTC
+                    EnsureUtcDateTime(entry.Entity);
                     break;
             }
         }
 
         return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void EnsureUtcDateTime(BaseEntity entity)
+    {
+        // Use reflection to find all DateTime and DateTime? properties
+        var properties = entity.GetType().GetProperties()
+            .Where(p => p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?));
+
+        foreach (var property in properties)
+        {
+            var value = property.GetValue(entity);
+            if (value != null)
+            {
+                if (property.PropertyType == typeof(DateTime))
+                {
+                    var dateTime = (DateTime)value;
+                    if (dateTime.Kind != DateTimeKind.Utc)
+                    {
+                        property.SetValue(entity, dateTime.Kind == DateTimeKind.Unspecified 
+                            ? DateTime.SpecifyKind(dateTime, DateTimeKind.Utc) 
+                            : dateTime.ToUniversalTime());
+                    }
+                }
+                else if (property.PropertyType == typeof(DateTime?))
+                {
+                    var dateTime = (DateTime?)value;
+                    if (dateTime.HasValue && dateTime.Value.Kind != DateTimeKind.Utc)
+                    {
+                        var utcValue = dateTime.Value.Kind == DateTimeKind.Unspecified 
+                            ? DateTime.SpecifyKind(dateTime.Value, DateTimeKind.Utc) 
+                            : dateTime.Value.ToUniversalTime();
+                        property.SetValue(entity, utcValue);
+                    }
+                }
+            }
+        }
     }
 
     public static class DbContextExtensions
