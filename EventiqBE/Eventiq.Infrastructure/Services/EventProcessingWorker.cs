@@ -33,7 +33,6 @@ public class EventProcessingWorker : BackgroundService
         {
             try
             {
-                // Kiểm tra queue có message không
                 var queueCount = InMemoryMessageQueueService.QueueCount;
                 if (queueCount > 0)
                 {
@@ -52,7 +51,6 @@ public class EventProcessingWorker : BackgroundService
                 }
                 else
                 {
-                    // Không có message, đợi 
                     await Task.Delay(_checkInterval, stoppingToken);
                 }
             }
@@ -156,11 +154,9 @@ public class EventProcessingWorker : BackgroundService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error processing chart {ChartId} for {Count} event items", chartId, chartEventItems.Count);
-                    // Continue with next chart instead of throwing
                 }
             }
             
-            // Old logic removed - now using chart-based grouping to avoid duplicate API calls
 
             var previousStatus = evnt.Status;
             
@@ -204,8 +200,6 @@ public class EventProcessingWorker : BackgroundService
                 _logger.LogError(rollbackEx, "Error rolling back transaction for event {EventId}", message.EventId);
             }
             
-            // Update event status back to Pending in a new transaction
-            // This must be done outside the rolled-back transaction
             try
             {
                 using var statusScope = _serviceProvider.CreateScope();
@@ -254,7 +248,6 @@ public class EventProcessingWorker : BackgroundService
 
             var eventSeats = new List<EventSeat>();
 
-            // Extract seats từ venue definition
             foreach (var objProperty in objectsElement.EnumerateObject())
             {
                 var obj = objProperty.Value;
@@ -266,13 +259,20 @@ public class EventProcessingWorker : BackgroundService
                 if (objType != "seat" && objType != "table")
                     continue;
 
+                var seatLabel = obj.TryGetProperty("label", out var labelElement) 
+                    ? labelElement.GetString() 
+                    : objProperty.Name;
+                
+                if (string.IsNullOrEmpty(seatLabel))
+                {
+                    _logger.LogWarning("Skipping object with no label in chart {ChartId}", chart.Id);
+                    continue;
+                }
+                
                 var seat = new EventSeat
                 {
                     ChartId = chart.Id,
-                    SeatKey = objProperty.Name,
-                    Label = obj.TryGetProperty("label", out var labelElement) 
-                        ? labelElement.GetString() 
-                        : objProperty.Name,
+                    Label = seatLabel, // Label is now the unique identifier
                     Section = obj.TryGetProperty("section", out var sectionElement) 
                         ? sectionElement.GetString() 
                         : null,
@@ -302,7 +302,6 @@ public class EventProcessingWorker : BackgroundService
                 _logger.LogInformation("Created {Count} seats for chart {ChartId}", eventSeats.Count, chart.Id);
             }
 
-            // Tạo EventSeatState cho tất cả event items sử dụng chart này
             var eventItems = await eventItemRepository.GetAllByEventIdAsync(eventId);
             var chartEventItems = eventItems.Where(ei => ei.ChartId == chart.Id).ToList();
             
@@ -315,7 +314,6 @@ public class EventProcessingWorker : BackgroundService
                 var existingStatesMap = await eventSeatStateRepository.GetSeatStatusMapAsync(eventItem.Id, seatIds);
                 var existingSeatIds = existingStatesMap.Keys.ToHashSet();
 
-                // Create EventSeatState for seats that don't have states yet
                 var newStates = new List<EventSeatState>();
                 foreach (var seat in allSeats)
                 {
@@ -330,7 +328,6 @@ public class EventProcessingWorker : BackgroundService
                     }
                 }
 
-                // Bulk insert new states
                 if (newStates.Any())
                 {
                     await eventSeatStateRepository.AddRangeAsync(newStates);
@@ -347,9 +344,7 @@ public class EventProcessingWorker : BackgroundService
         }
     }
 
-    /// <summary>
-    /// Process seats from Seats.io event using Event Reports API
-    /// </summary>
+
     private async Task ProcessEventItemFromEventAsync(
         EventItem eventItem,
         IEnumerable<SeatInfoDto> seats,
@@ -363,16 +358,15 @@ public class EventProcessingWorker : BackgroundService
             // Convert SeatInfoDto to EventSeat
             foreach (var seatDto in seats)
             {
-                // Check if seat already exists for this chart
-                var existingSeat = await eventSeatRepository.GetByChartIdAndSeatKeyAsync(eventItem.ChartId, seatDto.SeatKey);
+                var seatLabel = seatDto.Label ?? seatDto.SeatKey ?? throw new InvalidOperationException("Seat must have either Label or SeatKey");
+                var existingSeat = await eventSeatRepository.GetSeatByLabelAsync(eventItem.ChartId, seatLabel);
                 
                 if (existingSeat == null)
                 {
                     var seat = new EventSeat
                     {
                         ChartId = eventItem.ChartId,
-                        SeatKey = seatDto.SeatKey,
-                        Label = seatDto.Label ?? seatDto.SeatKey,
+                        Label = seatLabel, // Label is now the unique identifier
                         Section = seatDto.Section,
                         Row = seatDto.Row,
                         Number = seatDto.Number,
@@ -385,7 +379,6 @@ public class EventProcessingWorker : BackgroundService
                 }
                 else
                 {
-                    // Update existing seat if needed
                     existingSeat.Label = seatDto.Label ?? existingSeat.Label;
                     existingSeat.Section = seatDto.Section ?? existingSeat.Section;
                     existingSeat.Row = seatDto.Row ?? existingSeat.Row;
@@ -406,15 +399,12 @@ public class EventProcessingWorker : BackgroundService
                 _logger.LogInformation("Created/updated {Count} seats for event item {EventItemId}", eventSeats.Count, eventItem.Id);
             }
 
-            // Get all seats for this chart (including newly created ones)
             var allSeats = await eventSeatRepository.GetByChartIdAsync(eventItem.ChartId);
             var seatIds = allSeats.Select(s => s.Id).ToList();
 
-            // Batch load existing states to avoid N+1 queries
             var existingStatesMap = await eventSeatStateRepository.GetSeatStatusMapAsync(eventItem.Id, seatIds);
             var existingSeatIds = existingStatesMap.Keys.ToHashSet();
 
-            // Create EventSeatState for seats that don't have states yet
             var newStates = new List<EventSeatState>();
             foreach (var seat in allSeats)
             {
@@ -429,7 +419,6 @@ public class EventProcessingWorker : BackgroundService
                 }
             }
 
-            // Bulk insert new states
             if (newStates.Any())
             {
                 await eventSeatStateRepository.AddRangeAsync(newStates);
@@ -447,9 +436,7 @@ public class EventProcessingWorker : BackgroundService
         }
     }
 
-    /// <summary>
-    /// Process seats from chart venue definition (fallback when no eventKey)
-    /// </summary>
+
     private async Task ProcessEventItemFromChartAsync(
         EventItem eventItem,
         IChartRepository chartRepository,
@@ -481,7 +468,6 @@ public class EventProcessingWorker : BackgroundService
             {
                 var chartReport = await seatService.GetChartReportDetailAsync(chart.Key);
                 
-                // Process chart report and bulk insert seats
                 await ProcessChartReportAsync(
                     chart,
                     eventItem,
@@ -505,9 +491,7 @@ public class EventProcessingWorker : BackgroundService
         }
     }
 
-    /// <summary>
-    /// Process chart report for multiple event items (optimized - one API call per chart)
-    /// </summary>
+
     private async Task ProcessChartReportForMultipleEventItemsAsync(
         Chart chart,
         List<EventItem> eventItems,
@@ -535,7 +519,6 @@ public class EventProcessingWorker : BackgroundService
             {
                 try
                 {
-                    // Get object properties
                     var label = obj.TryGetProperty("Label", out var labelElement) 
                         ? labelElement.GetString() 
                         : null;
@@ -544,29 +527,12 @@ public class EventProcessingWorker : BackgroundService
                         ? typeElement.GetString() 
                         : null;
                     
-                    // Only process seats and tables
                     if (objectType != "seat" && objectType != "table" && objectType != "generalAdmission")
                         continue;
 
-                    // Get IDs - use Own ID as seat key
-                    string? seatKey = null;
-                    if (obj.TryGetProperty("IDs", out var idsElement))
+                    if (string.IsNullOrEmpty(label))
                     {
-                        if (idsElement.TryGetProperty("Own", out var ownElement))
-                        {
-                            seatKey = ownElement.GetString();
-                        }
-                    }
-                    
-                    // Fallback to Label if no Own ID
-                    if (string.IsNullOrEmpty(seatKey))
-                    {
-                        seatKey = label;
-                    }
-                    
-                    if (string.IsNullOrEmpty(seatKey))
-                    {
-                        _logger.LogWarning("Skipping object with no seat key in chart {ChartId}", chart.Id);
+                        _logger.LogWarning("Skipping object with no label in chart {ChartId}", chart.Id);
                         continue;
                     }
 
@@ -577,7 +543,6 @@ public class EventProcessingWorker : BackgroundService
                     
                     if (obj.TryGetProperty("Labels", out var labelsElement))
                     {
-                        // Get row from Parent.Label
                         if (labelsElement.TryGetProperty("Parent", out var parentElement))
                         {
                             if (parentElement.TryGetProperty("Label", out var parentLabelElement))
@@ -586,13 +551,11 @@ public class EventProcessingWorker : BackgroundService
                             }
                         }
                         
-                        // Get section
                         if (labelsElement.TryGetProperty("Section", out var sectionElement))
                         {
                             section = sectionElement.GetString();
                         }
                         
-                        // Get number from Own.Label
                         if (labelsElement.TryGetProperty("Own", out var ownLabelElement))
                         {
                             if (ownLabelElement.TryGetProperty("Label", out var ownLabelValueElement))
@@ -602,7 +565,6 @@ public class EventProcessingWorker : BackgroundService
                         }
                     }
                     
-                    // Fallback: get section from Section property directly
                     if (string.IsNullOrEmpty(section))
                     {
                         section = obj.TryGetProperty("Section", out var sectionDirectElement) 
@@ -610,17 +572,14 @@ public class EventProcessingWorker : BackgroundService
                             : null;
                     }
 
-                    // Get category
                     var categoryKey = obj.TryGetProperty("CategoryKey", out var categoryKeyElement) 
                         ? categoryKeyElement.GetString() 
                         : null;
 
-                    // Create EventSeat
                     var seat = new EventSeat
                     {
                         ChartId = chart.Id,
-                        SeatKey = seatKey,
-                        Label = label ?? seatKey,
+                        Label = label, // Label is required and unique
                         Section = section,
                         Row = row,
                         Number = number,
@@ -633,7 +592,6 @@ public class EventProcessingWorker : BackgroundService
                 catch (Exception objEx)
                 {
                     _logger.LogWarning(objEx, "Error parsing object in chart report for chart {ChartId}", chart.Id);
-                    // Continue with next object
                 }
             }
 
@@ -650,20 +608,16 @@ public class EventProcessingWorker : BackgroundService
                 return;
             }
 
-            // Get all seats for this chart (including newly created ones)
             var allSeats = await eventSeatRepository.GetByChartIdAsync(chart.Id);
             var seatIds = allSeats.Select(s => s.Id).ToList();
 
-            // Create EventSeatState for each event item
             foreach (var eventItem in eventItems)
             {
                 try
                 {
-                    // Batch load existing states to avoid N+1 queries
                     var existingStatesMap = await eventSeatStateRepository.GetSeatStatusMapAsync(eventItem.Id, seatIds);
                     var existingSeatIds = existingStatesMap.Keys.ToHashSet();
 
-                    // Create EventSeatState for seats that don't have states yet
                     var newStates = new List<EventSeatState>();
                     foreach (var seat in allSeats)
                     {
@@ -692,7 +646,6 @@ public class EventProcessingWorker : BackgroundService
                 catch (Exception itemEx)
                 {
                     _logger.LogError(itemEx, "Error creating seat states for event item {EventItemId}", eventItem.Id);
-                    // Continue with next event item
                 }
             }
         }
@@ -704,9 +657,6 @@ public class EventProcessingWorker : BackgroundService
         }
     }
 
-    /// <summary>
-    /// Process chart report and bulk insert seats into database (legacy method - kept for backward compatibility)
-    /// </summary>
     private async Task ProcessChartReportAsync(
         Chart chart,
         EventItem eventItem,
@@ -734,7 +684,6 @@ public class EventProcessingWorker : BackgroundService
             {
                 try
                 {
-                    // Get object properties
                     var label = obj.TryGetProperty("Label", out var labelElement) 
                         ? labelElement.GetString() 
                         : null;
@@ -743,40 +692,22 @@ public class EventProcessingWorker : BackgroundService
                         ? typeElement.GetString() 
                         : null;
                     
-                    // Only process seats and tables
                     if (objectType != "seat" && objectType != "table" && objectType != "generalAdmission")
                         continue;
 
-                    // Get IDs - use Own ID as seat key
-                    string? seatKey = null;
-                    if (obj.TryGetProperty("IDs", out var idsElement))
+                    // Label is now the unique identifier (required)
+                    if (string.IsNullOrEmpty(label))
                     {
-                        if (idsElement.TryGetProperty("Own", out var ownElement))
-                        {
-                            seatKey = ownElement.GetString();
-                        }
-                    }
-                    
-                    // Fallback to Label if no Own ID
-                    if (string.IsNullOrEmpty(seatKey))
-                    {
-                        seatKey = label;
-                    }
-                    
-                    if (string.IsNullOrEmpty(seatKey))
-                    {
-                        _logger.LogWarning("Skipping object with no seat key in chart {ChartId}", chart.Id);
+                        _logger.LogWarning("Skipping object with no label in chart {ChartId}", chart.Id);
                         continue;
                     }
 
-                    // Get Labels for row/parent info
                     string? row = null;
                     string? section = null;
                     string? number = null;
                     
                     if (obj.TryGetProperty("Labels", out var labelsElement))
                     {
-                        // Get row from Parent.Label
                         if (labelsElement.TryGetProperty("Parent", out var parentElement))
                         {
                             if (parentElement.TryGetProperty("Label", out var parentLabelElement))
@@ -785,13 +716,11 @@ public class EventProcessingWorker : BackgroundService
                             }
                         }
                         
-                        // Get section
                         if (labelsElement.TryGetProperty("Section", out var sectionElement))
                         {
                             section = sectionElement.GetString();
                         }
                         
-                        // Get number from Own.Label
                         if (labelsElement.TryGetProperty("Own", out var ownLabelElement))
                         {
                             if (ownLabelElement.TryGetProperty("Label", out var ownLabelValueElement))
@@ -801,7 +730,6 @@ public class EventProcessingWorker : BackgroundService
                         }
                     }
                     
-                    // Fallback: get section from Section property directly
                     if (string.IsNullOrEmpty(section))
                     {
                         section = obj.TryGetProperty("Section", out var sectionDirectElement) 
@@ -814,12 +742,10 @@ public class EventProcessingWorker : BackgroundService
                         ? categoryKeyElement.GetString() 
                         : null;
 
-                    // Create EventSeat
                     var seat = new EventSeat
                     {
                         ChartId = chart.Id,
-                        SeatKey = seatKey,
-                        Label = label ?? seatKey,
+                        Label = label, // Label is required and unique
                         Section = section,
                         Row = row,
                         Number = number,
@@ -836,7 +762,6 @@ public class EventProcessingWorker : BackgroundService
                 }
             }
 
-            // Bulk upsert seats
             if (eventSeats.Any())
             {
                 await eventSeatRepository.BulkUpsertAsync(eventSeats);
@@ -850,15 +775,12 @@ public class EventProcessingWorker : BackgroundService
                 return;
             }
 
-            // Get all seats for this chart (including newly created ones)
             var allSeats = await eventSeatRepository.GetByChartIdAsync(chart.Id);
             var seatIds = allSeats.Select(s => s.Id).ToList();
 
-            // Batch load existing states to avoid N+1 queries
             var existingStatesMap = await eventSeatStateRepository.GetSeatStatusMapAsync(eventItem.Id, seatIds);
             var existingSeatIds = existingStatesMap.Keys.ToHashSet();
 
-            // Create EventSeatState for seats that don't have states yet
             var newStates = new List<EventSeatState>();
             foreach (var seat in allSeats)
             {

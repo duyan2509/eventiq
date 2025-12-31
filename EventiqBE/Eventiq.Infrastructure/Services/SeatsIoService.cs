@@ -37,7 +37,7 @@ public class SeatsIoService : ISeatService
                 chart.Key,
                 new Category()
                 {
-                    Key = ticketClass.Name, // Use ticket class name as unique category key
+                    Key = ticketClass.Name, 
                     Color = color,
                     Label = ticketClass.Name,
                 }
@@ -62,17 +62,6 @@ public class SeatsIoService : ISeatService
             var chart = await client.Charts.RetrieveAsync(chartKey);
             var seats = new List<SeatInfoDto>();
 
-            // Seats.io stores objects in the chart's venue definition
-            // We need to parse the chart data to extract seat information
-            // For now, we'll use a workaround: create a temporary event to list objects
-            // Or use the chart's object info directly if available
-            
-            // Note: Seats.io .NET SDK may not have direct method to list all objects from chart
-            // This is a simplified implementation - you may need to use REST API directly
-            // or use Events API to retrieve objects after creating an event from the chart
-            
-            // For now, return empty list and note that seats should be synced from Seats.io designer
-            // The actual seat data will come from the frontend when user clicks Save in the designer
             
             return seats;
         }
@@ -84,9 +73,7 @@ public class SeatsIoService : ISeatService
 
     public Task<Dictionary<string, string>> GetSeatStatusForEventItemAsync(string chartKey, Guid eventItemId, IEnumerable<string> seatKeys)
     {
-        // This method would typically retrieve seat statuses from Seats.io events
-        // For now, return empty dictionary as statuses are managed in our DB via EventSeatState
-        // This can be enhanced later if needed for real-time sync
+
         return Task.FromResult(new Dictionary<string, string>());
     }
 
@@ -138,7 +125,6 @@ public class SeatsIoService : ISeatService
             }
             catch (Exception sdkEx)
             {
-                // SDK failed, try REST API as fallback
             try
             {
                 var apiUrl = $"https://api.seats.io/v2/charts/{chartKey}";
@@ -190,16 +176,9 @@ public class SeatsIoService : ISeatService
     {
         try
         {
-            // Use Seats.io .NET SDK to create event from chart
-            // According to https://github.com/seatsio/seatsio-dotnet
-            // var evnt = await client.Events.CreateAsync(chart.Key);
-            // Note: SDK CreateAsync only accepts chartKey, not eventKey parameter
-            // Seats.io will auto-generate event key, we'll use the returned key
             
             var evnt = await client.Events.CreateAsync(chartKey);
             
-            // Return the event key from Seats.io response
-            // If we wanted a specific eventKey, we would need to use REST API or update after creation
             return evnt.Key;
         }
         catch (Exception ex)
@@ -215,8 +194,6 @@ public class SeatsIoService : ISeatService
             // Use Seats.io .NET SDK to retrieve event
             var evnt = await client.Events.RetrieveAsync(eventKey);
             
-            // Map the SDK Event object to our DTO
-            // The SDK Event object should have similar properties to the API response
             var dto = new SeatsIoEventDto
             {
                 Id = evnt.Id,
@@ -329,7 +306,6 @@ public class SeatsIoService : ISeatService
         try
         {
             // Use Seats.io Event Reports API to get all objects from event
-            // API: GET /events/{eventKey}/reports/byLabel
             var apiUrl = $"https://api.seats.io/v2/events/{eventKey}/reports/byLabel";
             
             var request = new HttpRequestMessage(HttpMethod.Get, apiUrl);
@@ -344,7 +320,6 @@ public class SeatsIoService : ISeatService
                 var seats = new List<SeatInfoDto>();
                 
                 // Parse JSON response from Event Reports API
-                // Response format: array of objects with properties like label, status, categoryKey, etc.
                 using var doc = JsonDocument.Parse(jsonContent);
                 var root = doc.RootElement;
                 
@@ -381,15 +356,18 @@ public class SeatsIoService : ISeatService
                                 seat.Number = seatNum.GetString();
                         }
                         
-                        // Extract extra data if available
                         if (obj.TryGetProperty("extraData", out var extraData))
                         {
                             seat.ExtraData = JsonSerializer.Deserialize<object>(extraData.GetRawText());
                         }
                         
-                        // Only add if we have a valid seat key
-                        if (!string.IsNullOrEmpty(seat.SeatKey))
+                        if (!string.IsNullOrEmpty(seat.Label))
                         {
+                            seats.Add(seat);
+                        }
+                        else if (!string.IsNullOrEmpty(seat.SeatKey))
+                        {
+                            seat.Label = seat.SeatKey;
                             seats.Add(seat);
                         }
                     }
@@ -422,11 +400,8 @@ public class SeatsIoService : ISeatService
     {
         try
         {
-            // Use Seats.io SDK to get event report
-            // Documentation: https://docs.seats.io/docs/api/event-reports/
             var report = await client.EventReports.ByLabelAsync(eventKey);
             
-            // Convert SDK result to our format
             return ProcessReportResult(report, eventKey, isEvent: true);
         }
         catch (Exception ex)
@@ -438,9 +413,7 @@ public class SeatsIoService : ISeatService
     /// <summary>
     /// Get detailed chart report from Seats.io
     /// Returns detailed information about all objects (seats) in the chart including category, type, etc.
-    /// Note: Chart reports show the structure of the chart, not the actual booking status (which is in events)
     /// Uses SDK: client.ChartReports.ByLabelAsync()
-    /// Documentation: https://docs.seats.io/docs/api/chart-reports/detail/
     /// </summary>
     public async Task<object> GetChartReportDetailAsync(string chartKey)
     {
@@ -465,8 +438,6 @@ public class SeatsIoService : ISeatService
         {
             var drawing = await client.Charts.RetrievePublishedVersionAsync(chartKey);
             
-            // Return a structured object with all available properties
-            // Note: Drawing may not have Objects property directly, objects are in the venue definition
             var result = new Dictionary<string, object>
             {
                 ["VenueType"] = drawing.VenueType ?? "Unknown"
@@ -490,7 +461,6 @@ public class SeatsIoService : ISeatService
                 result["CategoriesCount"] = 0;
             }
             
-            // Try to get all properties using reflection to see what's available
             var properties = drawing.GetType().GetProperties();
             var availableProperties = new Dictionary<string, object>();
             foreach (var prop in properties)
@@ -814,6 +784,65 @@ public class SeatsIoService : ISeatService
                 }
             }
             throw new Exception($"Failed to publish draft version of chart {chartKey}: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<HoldTokenDto> CreateHoldTokenAsync(int expiresInSeconds)
+    {
+        try
+        {
+            // Use Seats.io SDK to create hold token
+            var holdToken = await client.HoldTokens.CreateAsync(expiresInSeconds);
+            
+            return new HoldTokenDto
+            {
+                HoldToken = holdToken.Token,
+                ExpiresAt = holdToken.ExpiresAt.UtcDateTime, // Convert to UTC DateTime for PostgreSQL compatibility
+                ExpiresInSeconds = expiresInSeconds
+            };
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to create hold token: {ex.Message}", ex);
+        }
+    }
+
+    public async Task HoldSeatsAsync(string eventKey, List<string> seatIds, string holdToken)
+    {
+        try
+        {
+            // Use Seats.io SDK to hold seats
+            await client.Events.HoldAsync(eventKey, seatIds.ToArray(), holdToken);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to hold seats in Seats.io: {ex.Message}", ex);
+        }
+    }
+
+    public async Task BookSeatsAsync(string eventKey, List<string> seatIds)
+    {
+        try
+        {
+            // Use Seats.io SDK to book seats permanently
+            await client.Events.BookAsync(eventKey, seatIds.ToArray());
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to book seats in Seats.io: {ex.Message}", ex);
+        }
+    }
+
+    public async Task ReleaseSeatsAsync(string eventKey, List<string> seatIds)
+    {
+        try
+        {
+            // Use Seats.io SDK to release held seats
+            await client.Events.ReleaseAsync(eventKey, seatIds.ToArray());
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to release seats in Seats.io: {ex.Message}", ex);
         }
     }
 
