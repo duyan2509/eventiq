@@ -87,7 +87,7 @@ const OrganizationDetail = () => {
                                 {event.eventAddress?.communeName ? `, ${event.eventAddress.communeName}` : ''}
                                 {event.eventAddress?.provinceName ? `, ${event.eventAddress.provinceName}` : ''}
                             </p>
-                            <div className="mt-4">
+                            <div className="mt-4 flex gap-2">
                                 <Button 
                                     type="primary" 
                                     onClick={(e) => {
@@ -96,6 +96,15 @@ const OrganizationDetail = () => {
                                     }}
                                 >
                                     Staff Config
+                                </Button>
+                                <Button 
+                                    type="default"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/org/${orgId}/event/${event.id}/revenue`);
+                                    }}
+                                >
+                                    Xem báo cáo
                                 </Button>
                             </div>
                         </Card>
