@@ -27,9 +27,9 @@ const AdminProfile = () => {
         try {
             // TODO: Implement update profile API
             // await authAPI.updateProfile(values);
-            message.success('Cập nhật profile thành công');
+            message.success('Profile updated successfully');
         } catch (err) {
-            message.error(err?.response?.data?.message || 'Cập nhật profile thất bại');
+            message.error(err?.response?.data?.message || 'Failed to update profile');
         } finally {
             setLoading(false);
         }
@@ -48,17 +48,17 @@ const AdminProfile = () => {
                     autoComplete="off"
                 >
                     <Form.Item
-                        label="Họ"
+                        label="First Name"
                         name="firstName"
-                        rules={[{ required: true, message: 'Vui lòng nhập họ' }]}
+                        rules={[{ required: true, message: 'Please enter first name' }]}
                     >
                         <Input prefix={<UserOutlined />} />
                     </Form.Item>
 
                     <Form.Item
-                        label="Tên"
+                        label="Last Name"
                         name="lastName"
-                        rules={[{ required: true, message: 'Vui lòng nhập tên' }]}
+                        rules={[{ required: true, message: 'Please enter last name' }]}
                     >
                         <Input prefix={<UserOutlined />} />
                     </Form.Item>
@@ -67,15 +67,15 @@ const AdminProfile = () => {
                         label="Email"
                         name="email"
                         rules={[
-                            { required: true, message: 'Vui lòng nhập email' },
-                            { type: 'email', message: 'Email không hợp lệ' },
+                            { required: true, message: 'Please enter email' },
+                            { type: 'email', message: 'Invalid email' },
                         ]}
                     >
                         <Input disabled />
                     </Form.Item>
 
                     <Form.Item
-                        label="Số điện thoại"
+                        label="Phone Number"
                         name="phoneNumber"
                     >
                         <Input />
@@ -89,10 +89,10 @@ const AdminProfile = () => {
                                 icon={<SaveOutlined />}
                                 loading={loading}
                             >
-                                Lưu thay đổi
+                                Save Changes
                             </Button>
                             <Button onClick={() => form.resetFields()}>
-                                Đặt lại
+                                Reset
                             </Button>
                         </Space>
                     </Form.Item>

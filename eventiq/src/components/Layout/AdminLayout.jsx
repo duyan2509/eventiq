@@ -23,7 +23,7 @@ const AdminLayout = () => {
 
     const handleLogout = () => {
         logout();
-        success('Đăng xuất thành công');
+        success('Logged out successfully');
         navigate('/');
     };
 
@@ -56,17 +56,17 @@ const AdminLayout = () => {
         {
             key: '/admin/events',
             icon: <CalendarOutlined />,
-            label: 'Quản lý Event',
+            label: 'Event Management',
         },
         {
             key: '/admin/revenue',
             icon: <DollarOutlined />,
-            label: 'Quản lý Doanh thu / Checkout',
+            label: 'Revenue Management',
         },
         {
             key: '/admin/users',
             icon: <UserOutlined />,
-            label: 'Quản lý Người dùng',
+            label: 'User Management',
         },
     ];
 

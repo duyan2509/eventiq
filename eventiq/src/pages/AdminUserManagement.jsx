@@ -8,7 +8,7 @@ const AdminUserManagement = () => {
     // TODO: Implement user management
     const columns = [
         {
-            title: 'Tên',
+            title: 'Name',
             dataIndex: 'name',
             key: 'name',
         },
@@ -18,17 +18,17 @@ const AdminUserManagement = () => {
             key: 'email',
         },
         {
-            title: 'Vai trò',
+            title: 'Role',
             dataIndex: 'role',
             key: 'role',
         },
         {
-            title: 'Trạng thái',
+            title: 'Status',
             dataIndex: 'status',
             key: 'status',
         },
         {
-            title: 'Hành động',
+            title: 'Actions',
             key: 'actions',
             render: () => (
                 <Space>
@@ -41,10 +41,10 @@ const AdminUserManagement = () => {
     return (
         <div>
             <Title level={2}>
-                <UserOutlined /> Quản lý Người dùng
+                <UserOutlined /> User Management
             </Title>
             <Card>
-                <p>Chức năng đang được phát triển...</p>
+                <p>Feature under development...</p>
                 <Table
                     columns={columns}
                     dataSource={[]}

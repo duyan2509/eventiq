@@ -178,7 +178,7 @@ const AdminPage = () => {
     return (
         <div>
             {contextHolder}
-            <Title level={2}>Quản lý Event</Title>
+            <Title level={2}>Event Management</Title>
             
             <div className="mb-4" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <Input
