@@ -14,6 +14,7 @@ public class RevenueService : IRevenueService
     private readonly IEventRepository _eventRepository;
     private readonly ITicketRepository _ticketRepository;
     private readonly ITicketClassRepository _ticketClassRepository;
+    private readonly IEventSeatRepository _eventSeatRepository;
     private readonly ICloudStorageService _cloudStorageService;
     private readonly ILogger<RevenueService> _logger;
 
@@ -24,6 +25,7 @@ public class RevenueService : IRevenueService
         IEventRepository eventRepository,
         ITicketRepository ticketRepository,
         ITicketClassRepository ticketClassRepository,
+        IEventSeatRepository eventSeatRepository,
         ICloudStorageService cloudStorageService,
         ILogger<RevenueService> logger)
     {
@@ -33,6 +35,7 @@ public class RevenueService : IRevenueService
         _eventRepository = eventRepository;
         _ticketRepository = ticketRepository;
         _ticketClassRepository = ticketClassRepository;
+        _eventSeatRepository = eventSeatRepository;
         _cloudStorageService = cloudStorageService;
         _logger = logger;
     }
@@ -134,8 +137,13 @@ public class RevenueService : IRevenueService
             
             if (eventEntity != null)
             {
-                var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
-                var totalTickets = ticketClasses.Sum(tc => tc.TotalQuantity);
+                var firstEventItem = await _eventItemRepository.GetByDetailByIdAsync(eventPayments.First().EventItemId);
+                var totalTickets = 0;
+                if (firstEventItem != null)
+                {
+                    var seats = await _eventSeatRepository.GetByChartIdAsync(firstEventItem.ChartId);
+                    totalTickets = seats.Count();
+                }
                 var ticketsSold = eventPayments.Count;
 
                 events.Add(new EventRevenueDto
@@ -187,8 +195,17 @@ public class RevenueService : IRevenueService
             var payments = await _paymentRepository.GetSuccessfulPaymentsByEventItemIdAsync(eventItem.Id);
             var tickets = await _ticketRepository.GetByEventItemIdAsync(eventItem.Id);
             var ticketClasses = await _ticketRepository.GetTicketClassesByEventItemIdAsync(eventItem.Id);
-            
-            var totalTickets = ticketClasses.Sum(tc => tc.TotalQuantity);
+            var totalTicketsFromClasses = ticketClasses.Sum(tc => tc.TotalQuantity);
+            int totalTickets;
+            if (totalTicketsFromClasses > 0)
+            {
+                totalTickets = totalTicketsFromClasses;
+            }
+            else
+            {
+                var seats = await _eventSeatRepository.GetByChartIdAsync(eventItem.ChartId);
+                totalTickets = seats.Count();
+            }
             var ticketsSold = tickets.Count();
             var grossRevenue = payments.Sum(p => p.GrossAmount);
             var orgAmount = payments.Sum(p => p.OrgAmount);
@@ -341,6 +358,10 @@ public class RevenueService : IRevenueService
 
                 var classTickets = tickets.Where(t => t.TicketClassId == ticketClass.Id).ToList();
                 var ticketsSold = classTickets.Count;
+                var totalTicketsFromClass = ticketClass.TotalQuantity;
+                var totalTickets = totalTicketsFromClass > 0 
+                    ? totalTicketsFromClass 
+                    : (await _eventSeatRepository.GetByChartIdAsync(eventItem.ChartId)).Count(s => s.CategoryKey == ticketClass.Name);
                 
                 var grossRevenue = ticketClass.Price * ticketsSold;
                 var orgAmount = grossRevenue * 0.8m; 
@@ -351,7 +372,7 @@ public class RevenueService : IRevenueService
                     EventItemName = eventItem.Name,
                     TicketClassId = ticketClass.Id,
                     TicketClassName = ticketClass.Name,
-                    TotalTickets = ticketClass.TotalQuantity,
+                    TotalTickets = totalTickets,
                     SoldTickets = ticketsSold,
                     GrossRevenue = grossRevenue,
                     OrganizationAmount = orgAmount
