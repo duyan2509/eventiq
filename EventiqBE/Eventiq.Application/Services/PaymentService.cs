@@ -71,14 +71,12 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException($"Checkout is already {checkout.Status}");
         }
 
-        // Check if payment already exists
         var existingPayment = await _paymentRepository.GetByCheckoutIdAsync(checkoutId);
         if (existingPayment != null && existingPayment.Status == PaymentStatus.SUCCESS)
         {
             throw new InvalidOperationException("Payment already completed");
         }
 
-        // Calculate total amount from ticket classes
         var eventItem = checkout.EventItem;
         if (eventItem == null)
         {
@@ -93,26 +91,22 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException("No ticket class found for event item");
         }
 
-        // Get all seats to check their CategoryKey
         var seats = await _eventSeatRepository.GetSeatsByLabelsAsync(eventItem.ChartId, seatIds);
         if (seats.Count() != seatIds.Count)
         {
             throw new InvalidOperationException($"Some seats not found. Expected {seatIds.Count}, found {seats.Count()}");
         }
 
-        // Calculate total amount by matching each seat to its ticket class
         decimal grossAmount = 0;
         foreach (var seat in seats)
         {
             TicketClass? matchingTicketClass = null;
             
-            // Try to match by CategoryKey if available
             if (!string.IsNullOrEmpty(seat.CategoryKey))
             {
                 matchingTicketClass = ticketClasses.FirstOrDefault(tc => tc.Name == seat.CategoryKey);
             }
             
-            // If no match found, use the first ticket class as fallback
             if (matchingTicketClass == null)
             {
                 matchingTicketClass = ticketClasses.FirstOrDefault();
@@ -131,7 +125,6 @@ public class PaymentService : IPaymentService
         // Generate payment ID
         var paymentId = $"EVT{checkoutId.ToString("N").Substring(0, 12)}{DateTime.UtcNow:yyyyMMddHHmmss}";
 
-        // Create payment record
         Payment payment;
         if (existingPayment != null)
         {
@@ -159,7 +152,10 @@ public class PaymentService : IPaymentService
             payment = await _paymentRepository.AddAsync(payment);
         }
 
-        // Create VNPAY payment URL
+        var paymentLockTtl = TimeSpan.FromMinutes(15);
+        await _redisService.ExtendSeatLockAsync(checkout.EventItemId, seatIds, paymentLockTtl);
+        await _redisService.ExtendCheckoutSessionAsync(checkout.Id.ToString(), paymentLockTtl);
+        
         var orderInfo = $"{eventItem.Name}";
         var paymentUrl = _vnPayService.CreatePaymentUrl(paymentId, grossAmount, orderInfo, returnUrl, ipnUrl);
 
@@ -201,14 +197,12 @@ public class PaymentService : IPaymentService
             return false;
         }
 
-        // Check if already processed
         if (payment.Status == PaymentStatus.SUCCESS && payment.IsVerified)
         {
             _logger.LogInformation("Payment already processed: {PaymentId}", ipnResult.PaymentId);
             return true;
         }
 
-        // Verify amount matches
         if (payment.GrossAmount != ipnResult.Amount)
         {
             _logger.LogWarning("Amount mismatch. Expected: {Expected}, Received: {Received}", 
@@ -216,7 +210,6 @@ public class PaymentService : IPaymentService
             return false;
         }
 
-        // Process payment
         if (ipnResult.IsSuccess)
         {
             try
@@ -246,7 +239,6 @@ public class PaymentService : IPaymentService
                 await _seatService.BookSeatsAsync(eventItem.EventKey, seatIds);
                 _logger.LogInformation("Booked seats on Seats.io for checkout {CheckoutId}", payment.CheckoutId);
 
-                // Create tickets
                 var ticketClasses = await _ticketRepository.GetTicketClassesByEventItemIdAsync(eventItem.Id);
                 var tickets = new List<Ticket>();
 
@@ -261,13 +253,11 @@ public class PaymentService : IPaymentService
 
                     TicketClass? matchingTicketClass = null;
                     
-                    // Try to match by CategoryKey if available
                     if (!string.IsNullOrEmpty(seat.CategoryKey))
                     {
                         matchingTicketClass = ticketClasses.FirstOrDefault(tc => tc.Name == seat.CategoryKey);
                     }
                     
-                    // If no match found, use the first ticket class as fallback
                     if (matchingTicketClass == null)
                     {
                         matchingTicketClass = ticketClasses.FirstOrDefault();
@@ -315,11 +305,9 @@ public class PaymentService : IPaymentService
                 checkout.Status = "PAID";
                 await _checkoutRepository.UpdateAsync(checkout);
 
-                // Release Redis locks
                 await _redisService.ReleaseSeatsAsync(checkout.EventItemId, seatIds);
                 await _redisService.DeleteCheckoutSessionAsync(checkout.Id.ToString());
 
-                // Create or update payout record
                 await CreateOrUpdatePayoutAsync(eventItem, payment);
 
                 _logger.LogInformation("Payment processed successfully: {PaymentId}", ipnResult.PaymentId);
@@ -329,7 +317,6 @@ public class PaymentService : IPaymentService
             {
                 _logger.LogError(ex, "Error processing payment: {PaymentId}", ipnResult.PaymentId);
                 
-                // Mark payment as failed
                 payment.Status = PaymentStatus.FAILED;
                 await _paymentRepository.UpdateAsync(payment);
                 
@@ -356,7 +343,6 @@ public class PaymentService : IPaymentService
 
         if (existingPayout != null)
         {
-            // Update existing payout
             existingPayout.GrossRevenue += payment.GrossAmount;
             existingPayout.PlatformFee += payment.PlatformFee;
             existingPayout.OrgAmount += payment.OrgAmount;
@@ -364,7 +350,6 @@ public class PaymentService : IPaymentService
         }
         else
         {
-            // Create new payout
             var eventEntity = eventItem.Event;
             if (eventEntity != null)
             {

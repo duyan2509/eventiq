@@ -81,6 +81,23 @@ public class RedisService : IRedisService
         return false;
     }
 
+    public async Task ExtendSeatLockAsync(Guid eventItemId, List<string> seatIds, TimeSpan additionalTtl)
+    {
+        if (seatIds == null || seatIds.Count == 0)
+            return;
+
+        var tasks = seatIds.Select(async seatId =>
+        {
+            var key = $"lock:seat:{eventItemId}:{seatId}";
+            if (await _database.KeyExistsAsync(key))
+            {
+                await _database.KeyExpireAsync(key, additionalTtl);
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
     public async Task ReleaseSeatsAsync(Guid eventItemId, List<string> seatIds)
     {
         if (seatIds == null || seatIds.Count == 0)
@@ -102,6 +119,15 @@ public class RedisService : IRedisService
     {
         var key = $"checkout:{checkoutId}";
         await _database.StringSetAsync(key, data, ttl);
+    }
+
+    public async Task ExtendCheckoutSessionAsync(string checkoutId, TimeSpan additionalTtl)
+    {
+        var key = $"checkout:{checkoutId}";
+        if (await _database.KeyExistsAsync(key))
+        {
+            await _database.KeyExpireAsync(key, additionalTtl);
+        }
     }
 
     public async Task<string?> GetCheckoutSessionAsync(string checkoutId)

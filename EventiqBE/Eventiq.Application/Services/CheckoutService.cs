@@ -62,8 +62,7 @@ public class CheckoutService : ICheckoutService
             throw new InvalidOperationException($"Some seats not found. Expected {seatIds.Count}, found {seats.Count()}. SeatIds: {string.Join(", ", seatIds)}");
         }
 
-        //  Lock seats atomically using Redis Lua Script 
-        var lockTtl = TimeSpan.FromMinutes(15);
+        var lockTtl = TimeSpan.FromMinutes(5);
         var lockSuccess = await _redisService.LockSeatsAsync(eventItemId, seatIds, lockTtl);
         
         if (!lockSuccess)
@@ -189,18 +188,16 @@ public class CheckoutService : ICheckoutService
             await _seatService.BookSeatsAsync(checkout.EventKey!, seatIds);
             _logger.LogInformation("Booked seats on Seats.io for checkout {CheckoutId}", checkoutId);
 
-            // Save tickets to DB
             var eventItem = checkout.EventItem;
             var tickets = new List<Ticket>();
             
-            // Get ticket classes for seats (simplified - you may need to map by category)
             var ticketClasses = await _ticketRepository.GetTicketClassesByEventItemIdAsync(eventItem.Id);
             
             foreach (var seatLabel in seatIds)
             {
-                // Find seat by Label (seatIds are actually labels from chart.selectedObjects)
+                // Find seat by Label 
                 var seat = await _eventSeatRepository.GetSeatByLabelAsync(eventItem.ChartId, seatLabel);
-                var ticketClass = ticketClasses.FirstOrDefault(); // Simplified - should match by category
+                var ticketClass = ticketClasses.FirstOrDefault(); 
                 
                 if (ticketClass != null && seat != null)
                 {
@@ -220,14 +217,11 @@ public class CheckoutService : ICheckoutService
                 _logger.LogInformation("Created {Count} tickets for checkout {CheckoutId}", tickets.Count, checkoutId);
             }
 
-            // Update checkout status
             checkout.Status = "SUCCESS";
             checkout = await _checkoutRepository.UpdateAsync(checkout);
 
-            // Release Redis locks
             await _redisService.ReleaseSeatsAsync(checkout.EventItemId, seatIds);
             
-            // Delete checkout session from Redis
             await _redisService.DeleteCheckoutSessionAsync(checkoutId.ToString());
 
             return new CheckoutDto
@@ -275,21 +269,17 @@ public class CheckoutService : ICheckoutService
 
         try
         {
-            // Release seats on Seats.io
             if (!string.IsNullOrEmpty(checkout.EventKey) && seatIds.Count > 0)
             {
                 await _seatService.ReleaseSeatsAsync(checkout.EventKey, seatIds);
                 _logger.LogInformation("Released seats on Seats.io for checkout {CheckoutId}", checkoutId);
             }
 
-            // Release Redis locks
             await _redisService.ReleaseSeatsAsync(checkout.EventItemId, seatIds);
 
-            // Update checkout status
             checkout.Status = "CANCELED";
             await _checkoutRepository.UpdateAsync(checkout);
 
-            // Delete checkout session from Redis
             await _redisService.DeleteCheckoutSessionAsync(checkoutId.ToString());
 
             return true;
