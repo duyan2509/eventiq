@@ -417,6 +417,11 @@ const CustomerSeatMap = () => {
             <Title level={4} style={{ margin: 0 }}>
               {seatMap.eventItemName}
             </Title>
+            {(seatMap.maxPerUser > 0 || seatMap.MaxPerUser > 0) && (
+              <Tag color="blue" style={{ fontSize: 14 }}>
+                Max {seatMap.maxPerUser || seatMap.MaxPerUser} per user in a session
+              </Tag>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             {getSelectedSeatsCount() > 0 && (
