@@ -85,6 +85,9 @@ const Header = () => {
       case 'invitations':
         navigate('/invitations');
         break;
+      case 'tickets':
+        navigate('/my-tickets');
+        break;
       case 'logout':
         handleLogout();
         break;
@@ -98,6 +101,11 @@ const Header = () => {
       key: 'profile',
       icon: <UserOutlined />,
       label: 'Profile',
+    },
+    {
+      key: 'tickets',
+      icon: <UserOutlined />,
+      label: 'My Tickets',
     },
     {
       key: 'organizations',

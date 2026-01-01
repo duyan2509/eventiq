@@ -69,7 +69,7 @@ const Home = () => {
           <Button type="primary" size="large" className="h-12 px-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 border-none hover:from-blue-600 hover:to-purple-700" onClick={handleCreateEventClick}>
             Create New Event
           </Button>
-          <Button size="large" className="h-12 px-8 rounded-lg">
+          <Button size="large" className="h-12 px-8 rounded-lg" onClick={() => navigate('/events')}>
             Explore Events
           </Button>
         </Space>

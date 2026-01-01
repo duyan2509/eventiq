@@ -104,7 +104,7 @@ const OrganizationDetail = () => {
                                         navigate(`/org/${orgId}/event/${event.id}/revenue`);
                                     }}
                                 >
-                                    Xem báo cáo
+                                    Reports
                                 </Button>
                             </div>
                         </Card>
