@@ -14,6 +14,7 @@ import {
   Col,
 } from 'antd';
 import { DollarOutlined, ShoppingCartOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import CountdownTimer from '../components/Payment/CountdownTimer';
 
 const { Title, Text } = Typography;
 
@@ -22,8 +23,11 @@ const PaymentSkeleton = () => {
   const [searchParams] = useSearchParams();
   const [orderInfo, setOrderInfo] = useState(null);
   const [checkoutId, setCheckoutId] = useState(null);
+  const [checkout, setCheckout] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState(null); // 'pending', 'success', 'failed'
+  const [paymentStatus, setPaymentStatus] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const [isTimeout, setIsTimeout] = useState(false);
 
   useEffect(() => {
     // Get order info from localStorage
@@ -76,24 +80,104 @@ const PaymentSkeleton = () => {
   };
 
   useEffect(() => {
-    // Get checkout ID from localStorage
     const storedCheckoutId = localStorage.getItem('checkoutId');
     if (storedCheckoutId) {
       setCheckoutId(storedCheckoutId);
+      fetchCheckout(storedCheckoutId);
     }
 
-    // Check if returning from VNPAY
-    const vnpResponseCode = searchParams.get('vnp_ResponseCode');
-    if (vnpResponseCode) {
-      if (vnpResponseCode === '00') {
-        setPaymentStatus('success');
+    const checkTimeout = async () => {
+      const vnpResponseCode = searchParams.get('vnp_ResponseCode');
+      if (vnpResponseCode) {
+        if (vnpResponseCode === '00') {
+          setPaymentStatus('success');
+        } else {
+          setPaymentStatus('failed');
+          if (storedCheckoutId) {
+            try {
+              const checkoutData = await checkoutAPI.getCheckout(storedCheckoutId);
+              if (checkoutData && checkoutData.createdAt) {
+                const createdAt = new Date(checkoutData.createdAt);
+                const now = new Date();
+                const fiveMinutesInSeconds = 5 * 60;
+                const vnpayTimeoutInSeconds = 20 * 60;
+                const elapsed = Math.floor((now - createdAt) / 1000);
+                if (elapsed >= vnpayTimeoutInSeconds) {
+                  setIsTimeout(true);
+                } else if (elapsed >= fiveMinutesInSeconds) {
+                  setIsTimeout(true);
+                }
+              }
+            } catch (error) {
+              console.error('Error checking timeout:', error);
+            }
+          }
+        }
       } else {
-        setPaymentStatus('failed');
+        setPaymentStatus('pending');
       }
-    } else {
-      setPaymentStatus('pending');
-    }
+    };
+
+    checkTimeout();
   }, [searchParams]);
+
+  useEffect(() => {
+    if (checkout && checkout.createdAt && paymentStatus === 'pending') {
+      const updateTimer = async () => {
+        const createdAt = new Date(checkout.createdAt);
+        const now = new Date();
+        const fiveMinutesInSeconds = 5 * 60;
+        const elapsed = Math.floor((now - createdAt) / 1000);
+        const remaining = Math.max(0, fiveMinutesInSeconds - elapsed);
+        setTimeRemaining(remaining);
+        
+        if (remaining <= 0) {
+          setIsTimeout(true);
+          if (checkoutId) {
+            try {
+              await checkoutAPI.cancelCheckout(checkoutId);
+              localStorage.removeItem('checkoutId');
+              localStorage.removeItem('selectedSeats');
+              localStorage.removeItem('eventId');
+              localStorage.removeItem('eventItemId');
+            } catch (error) {
+              console.error('Error canceling checkout:', error);
+            }
+          }
+        }
+      };
+
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [checkout, paymentStatus, checkoutId]);
+
+  const fetchCheckout = async (id) => {
+    try {
+      const checkoutData = await checkoutAPI.getCheckout(id);
+      setCheckout(checkoutData);
+    } catch (error) {
+      console.error('Error fetching checkout:', error);
+    }
+  };
+
+  const handleTimerExpire = async () => {
+    if (checkoutId && paymentStatus === 'pending') {
+      try {
+        await checkoutAPI.cancelCheckout(checkoutId);
+        localStorage.removeItem('checkoutId');
+        localStorage.removeItem('selectedSeats');
+        localStorage.removeItem('eventId');
+        localStorage.removeItem('eventItemId');
+        alert('Seat lock time expired. Your checkout has been canceled.');
+        navigate(-1);
+      } catch (error) {
+        console.error('Error canceling checkout:', error);
+      }
+    }
+  };
 
   const handleBack = async () => {
     // Cancel checkout if exists
@@ -185,20 +269,32 @@ const PaymentSkeleton = () => {
         {paymentStatus === 'failed' && (
           <Alert
             message="Payment Failed"
-            description="Your payment could not be processed. Please try again."
+            description={isTimeout 
+              ? "Payment time has expired. Your checkout has been canceled. Please select seats again." 
+              : "Your payment could not be processed. Please try again."}
             type="error"
             showIcon
             style={{ marginBottom: 24 }}
           />
         )}
         {paymentStatus === 'pending' && (
-          <Alert
-            message="Ready to Pay"
-            description="Click the button below to proceed to VNPAY payment gateway."
-            type="info"
-            showIcon
-            style={{ marginBottom: 24 }}
-          />
+          <div className='flex flex-row justify-between '>
+            <Alert
+              message="Ready to Pay"
+              description="Click the button below to proceed to VNPAY payment gateway."
+              type="info"
+              showIcon
+              className='w-full mr-8'
+            />
+            {timeRemaining !== null && timeRemaining > 0 && (
+              <Card >
+                <CountdownTimer 
+                  initialSeconds={timeRemaining} 
+                  onExpire={handleTimerExpire}
+                />
+              </Card>
+            )}
+          </div>
         )}
 
         <Row gutter={[24, 24]}>
@@ -277,19 +373,38 @@ const PaymentSkeleton = () => {
           )}
           {paymentStatus === 'failed' && (
             <>
-              <Button
-                type="primary"
-                size="large"
-                style={{ marginRight: 8 }}
-                onClick={handleProceedToPayment}
-                loading={loading}
-                disabled={!checkoutId || loading}
-              >
-                Retry Payment
-              </Button>
-              <Button size="large" onClick={handleBack} disabled={loading}>
-                Cancel
-              </Button>
+              {isTimeout ? (
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={() => {
+                    const eventId = localStorage.getItem('eventId');
+                    if (eventId) {
+                      navigate(`/events/${eventId}`);
+                    } else {
+                      navigate('/events');
+                    }
+                  }}
+                >
+                  Back to Event Detail
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    type="primary"
+                    size="large"
+                    style={{ marginRight: 8 }}
+                    onClick={handleProceedToPayment}
+                    loading={loading}
+                    disabled={!checkoutId || loading}
+                  >
+                    Retry Payment
+                  </Button>
+                  <Button size="large" onClick={handleBack} disabled={loading}>
+                    Cancel
+                  </Button>
+                </>
+              )}
             </>
           )}
           {paymentStatus === 'pending' && (
