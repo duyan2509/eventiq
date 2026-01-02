@@ -3,6 +3,7 @@ using System;
 using Eventiq.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Eventiq.Migrations.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260102120310_AddVerifyRequestNAddTicketCodeTicketStatus")]
+    partial class AddVerifyRequestNAddTicketCodeTicketStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -63,47 +66,6 @@ namespace Eventiq.Migrations.Migrations
                         .IsUnique();
 
                     b.ToTable("Charts", "identity");
-                });
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.Checkin", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CheckinTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("EventItemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("StaffId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TicketId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventItemId");
-
-                    b.HasIndex("StaffId");
-
-                    b.HasIndex("TicketId");
-
-                    b.ToTable("Checkins", "identity");
                 });
 
             modelBuilder.Entity("Eventiq.Domain.Entities.Checkout", b =>
@@ -1186,33 +1148,6 @@ namespace Eventiq.Migrations.Migrations
                         .IsRequired();
 
                     b.Navigation("Event");
-                });
-
-            modelBuilder.Entity("Eventiq.Domain.Entities.Checkin", b =>
-                {
-                    b.HasOne("Eventiq.Domain.Entities.EventItem", "EventItem")
-                        .WithMany()
-                        .HasForeignKey("EventItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Eventiq.Domain.Entities.Staff", "Staff")
-                        .WithMany()
-                        .HasForeignKey("StaffId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Eventiq.Domain.Entities.Ticket", "Ticket")
-                        .WithMany()
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("EventItem");
-
-                    b.Navigation("Staff");
-
-                    b.Navigation("Ticket");
                 });
 
             modelBuilder.Entity("Eventiq.Domain.Entities.Checkout", b =>
