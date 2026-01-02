@@ -43,5 +43,13 @@ public class TicketRepository : GenericRepository<Ticket>, ITicketRepository
         
         return eventItem.Event.TicketClasses.Where(tc => !tc.IsDeleted).ToList();
     }
+
+    public async Task<Ticket?> GetByTicketCodeAsync(string ticketCode)
+    {
+        return await _dbSet
+            .Include(t => t.EventItem)
+            .Include(t => t.TicketClass)
+            .FirstOrDefaultAsync(t => t.TicketCode == ticketCode && !t.IsDeleted);
+    }
 }
 

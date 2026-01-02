@@ -174,6 +174,14 @@ public class IdentityService(
             throw new Exception($"{result.Errors.First().Description}");
     }
 
+    public async Task<bool> VerifyPasswordAsync(Guid userId, string password)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+            return false;
+        return await userManager.CheckPasswordAsync(user, password);
+    }
+
     public async Task AssignOrgRole(Guid userId)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());

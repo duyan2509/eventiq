@@ -29,6 +29,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     private DbSet<Checkout> Checkouts { get; set; }
     private DbSet<Payment> Payments { get; set; }
     private DbSet<Payout> Payouts { get; set; }
+    private DbSet<VerifyRequest> VerifyRequests { get; set; }
+    private DbSet<Checkin> Checkins { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,6 +69,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<EventTask>().HasIndex(t => new { t.Name, t.EventId }).IsUnique();
         modelBuilder.Entity<TaskOption>().HasIndex(to => new { to.OptionName, to.TaskId }).IsUnique();
         modelBuilder.Entity<StaffTaskAssignment>().HasIndex(sta => new { sta.StaffId, sta.TaskId, sta.OptionId }).IsUnique();
+        modelBuilder.Entity<Ticket>().HasIndex(t => t.TicketCode).IsUnique();
+        modelBuilder.Entity<VerifyRequest>().HasIndex(vr => vr.TicketId);
         
         // Global query filter for soft delete
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
