@@ -291,6 +291,11 @@ const handleBankAPIError = (error) => {
 };
 
 export const staffAPI = {
+  checkIn: async (ticketCode, otp) => {
+    const response = await api.post('/staff/checkin', { ticketCode, otp });
+    return response.data;
+  },
+
   // Staff Management
   getEventStaffs: async (eventId) => {
     const response = await api.get(`/staff/events/${eventId}/staffs`);
@@ -455,6 +460,11 @@ export const checkinAPI = {
 
   checkinTicket: async (eventItemId, ticketId) => {
     const response = await api.post(`/checkin/items/${eventItemId}/checkin`, { ticketId });
+    return response.data;
+  },
+
+  requestCheckIn: async (ticketId, password) => {
+    const response = await api.post(`/tickets/${ticketId}/checkin-request`, { password });
     return response.data;
   },
 };

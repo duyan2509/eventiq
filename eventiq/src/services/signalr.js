@@ -101,6 +101,10 @@ class SignalRService {
       this.emit('StaffInvitationResponded', data);
     });
 
+    this.connection.on('TicketCheckedIn', (data) => {
+      this.emit('TicketCheckedIn', data);
+    });
+
     return this.connection.start().then(() => {
       console.log('SignalR Connected successfully');
       this.connectionAttempts = 0; // Reset on success
