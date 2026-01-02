@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Table, Select, Button, Space, Typography, Spin, message } from 'antd';
+import { Card, Table, Select, Button, Space, Typography, Spin, message, Row, Col } from 'antd';
 import { LoginOutlined, ReloadOutlined } from '@ant-design/icons';
 import { checkinAPI, eventAPI } from '../services/api';
 import { useMessage } from '../hooks/useMessage';
 import dayjs from 'dayjs';
+import CheckInForm from '../components/Staff/CheckInForm';
+import CheckInResultPanel from '../components/Staff/CheckInResultPanel';
 
 const { Title } = Typography;
 
@@ -17,6 +19,7 @@ const Checkin = () => {
   const [selectedEventItemId, setSelectedEventItemId] = useState(eventItemId || null);
   const [checkins, setCheckins] = useState([]);
   const [checkinLoading, setCheckinLoading] = useState(false);
+  const [checkInResult, setCheckInResult] = useState(null);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -71,40 +74,42 @@ const Checkin = () => {
     fetchCheckins(newPagination.current, newPagination.pageSize);
   };
 
-  const handleCheckin = async () => {
-    message.info('Checkin functionality will be implemented later');
+  const handleCheckInSuccess = (result) => {
+    setCheckInResult({ success: true, message: result.message, ticketId: result.ticketId });
+    success('Check-in successful');
+    fetchCheckins(pagination.current, pagination.pageSize);
+    setTimeout(() => setCheckInResult(null), 3000);
+  };
+
+  const handleCheckInError = (errorMessage) => {
+    setCheckInResult({ success: false, message: errorMessage });
+    error(errorMessage);
+    setTimeout(() => setCheckInResult(null), 3000);
   };
 
   const columns = [
     {
       title: 'Customer',
       key: 'customer',
-      render: (_, record) => (
-        <Space direction="vertical" size="small">
-          <Typography.Text strong>{record.customerName || record.customerId}</Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.customerId}
-          </Typography.Text>
-        </Space>
-      ),
+      dataIndex: 'customerNameOrEmail',
+      render: (text) => <Typography.Text>{text || 'N/A'}</Typography.Text>,
     },
     {
       title: 'Staff',
       key: 'staff',
-      render: (_, record) => (
-        <Typography.Text>{record.staffName || 'N/A'}</Typography.Text>
-      ),
-    },
-    {
-      title: 'Time Check In',
-      dataIndex: 'checkinTime',
-      key: 'checkinTime',
-      render: (time) => dayjs(time).format('DD/MM/YYYY HH:mm:ss'),
+      dataIndex: 'staffNameOrEmail',
+      render: (text) => <Typography.Text>{text || 'N/A'}</Typography.Text>,
     },
     {
       title: 'Event Item',
       dataIndex: 'eventItemName',
       key: 'eventItemName',
+    },
+    {
+      title: 'Check In Time',
+      dataIndex: 'checkinTime',
+      key: 'checkinTime',
+      render: (time) => dayjs(time).format('DD/MM/YYYY HH:mm:ss'),
     },
   ];
 
@@ -115,40 +120,49 @@ const Checkin = () => {
           <LoginOutlined /> Check In
         </Title>
 
-        <Card>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Space>
-              <Typography.Text strong>Event Item:</Typography.Text>
-              <Select
-                style={{ width: 300 }}
-                value={selectedEventItemId}
-                onChange={setSelectedEventItemId}
-                loading={loading}
-                placeholder="Select event item"
-              >
-                {eventItems.map((item) => (
-                  <Select.Option key={item.id} value={item.id}>
-                    {item.name}
-                  </Select.Option>
-                ))}
-              </Select>
-              <Button
-                type="primary"
-                icon={<LoginOutlined />}
-                onClick={handleCheckin}
-              >
-                Check In
-              </Button>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => fetchCheckins(pagination.current, pagination.pageSize)}
-                loading={checkinLoading}
-              >
-                Refresh
-              </Button>
-            </Space>
-          </Space>
-        </Card>
+        <Row gutter={16}>
+          <Col xs={24} md={12}>
+            <CheckInForm onSuccess={handleCheckInSuccess} onError={handleCheckInError} />
+            {checkInResult && (
+              <div style={{ marginTop: 16 }}>
+                <CheckInResultPanel
+                  success={checkInResult.success}
+                  message={checkInResult.message}
+                  ticketId={checkInResult.ticketId}
+                />
+              </div>
+            )}
+          </Col>
+          <Col xs={24} md={12}>
+            <Card>
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space>
+                  <Typography.Text strong>Event Item:</Typography.Text>
+                  <Select
+                    style={{ width: 200 }}
+                    value={selectedEventItemId}
+                    onChange={setSelectedEventItemId}
+                    loading={loading}
+                    placeholder="Select event item"
+                  >
+                    {eventItems.map((item) => (
+                      <Select.Option key={item.id} value={item.id}>
+                        {item.name}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={() => fetchCheckins(pagination.current, pagination.pageSize)}
+                    loading={checkinLoading}
+                  >
+                    Refresh
+                  </Button>
+                </Space>
+              </Space>
+            </Card>
+          </Col>
+        </Row>
 
         <Card title="Check In Records">
           <Table
