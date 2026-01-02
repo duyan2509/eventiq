@@ -12,11 +12,13 @@ namespace Eventiq.Api.Controllers;
 public class StaffController : BaseController
 {
     private readonly IStaffService _staffService;
+    private readonly ICheckinService _checkinService;
     private readonly IHubContext<NotificationHub> _hubContext;
 
-    public StaffController(IStaffService staffService, IHubContext<NotificationHub> hubContext)
+    public StaffController(IStaffService staffService, ICheckinService checkinService, IHubContext<NotificationHub> hubContext)
     {
         _staffService = staffService;
+        _checkinService = checkinService;
         _hubContext = hubContext;
     }
 
@@ -607,6 +609,49 @@ public class StaffController : BaseController
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("checkin")]
+    public async Task<ActionResult<StaffCheckInResponseDto>> CheckIn(
+        [FromBody] StaffCheckInRequestDto request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty)
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var result = await _checkinService.StaffCheckInAsync(userId, request);
+            
+            if (result.Success && Guid.TryParse(result.CustomerUserId, out var customerId))
+            {
+                await _hubContext.Clients.Group($"user_{customerId}").SendAsync("TicketCheckedIn", new
+                {
+                    TicketId = result.TicketId,
+                    Message = result.Message
+                });
+            }
+            
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
