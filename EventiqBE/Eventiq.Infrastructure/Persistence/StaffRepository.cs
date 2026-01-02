@@ -36,8 +36,43 @@ public class StaffRepository : GenericRepository<Staff>, IStaffRepository
     {
         return await _dbSet
             .Include(s => s.Event)
+                .ThenInclude(e => e.Organization)
+            .Include(s => s.TaskAssignments)
+                .ThenInclude(ta => ta.Task)
+            .Include(s => s.TaskAssignments)
+                .ThenInclude(ta => ta.Option)
             .Where(s => s.UserId == userId)
             .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Staff>> GetByUserIdAndMonthAsync(Guid userId, int month, int year)
+    {
+        var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var endDate = startDate.AddMonths(1).AddMilliseconds(-1);
+
+        return await _dbSet
+            .Include(s => s.Event)
+                .ThenInclude(e => e.Organization)
+            .Where(s => s.UserId == userId &&
+                       s.StartTime <= endDate &&
+                       s.EndTime >= startDate)
+            .ToListAsync();
+    }
+
+    public async Task<Staff?> GetCurrentShiftAsync(Guid userId, DateTime currentTime)
+    {
+        return await _dbSet
+            .Include(s => s.Event)
+                .ThenInclude(e => e.Organization)
+            .Include(s => s.Event)
+                .ThenInclude(e => e.EventItem)
+            .Include(s => s.TaskAssignments)
+                .ThenInclude(ta => ta.Task)
+            .Include(s => s.TaskAssignments)
+                .ThenInclude(ta => ta.Option)
+            .Where(s => s.UserId == userId &&
+                       s.Event.EventItem.Any(ei => ei.Start <= currentTime && ei.End >= currentTime))
+            .FirstOrDefaultAsync();
     }
 
     public async Task<bool> HasOverlappingScheduleAsync(Guid userId, DateTime startTime, DateTime endTime, Guid? excludeEventId = null)
