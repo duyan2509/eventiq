@@ -10,8 +10,6 @@ public class StaffInvitationDto
     public Guid InvitedUserId { get; set; }
     public string? InvitedUserName { get; set; }
     public string? InvitedUserEmail { get; set; }
-    public DateTime EventStartTime { get; set; }
-    public DateTime EventEndTime { get; set; }
     public DateTime InviteExpiredAt { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime? RespondedAt { get; set; }
@@ -23,8 +21,6 @@ public class CreateStaffInvitationDto
     public Guid EventId { get; set; }
     public Guid OrganizationId { get; set; }
     public required string InvitedUserEmail { get; set; }
-    public DateTime EventStartTime { get; set; }
-    public DateTime EventEndTime { get; set; }
     public DateTime InviteExpiredAt { get; set; }
 }
 

@@ -17,6 +17,8 @@ public class StaffService : IStaffService
     private readonly IEventRepository _eventRepository;
     private readonly IOrganizationRepository _organizationRepository;
     private readonly IIdentityService _identityService;
+    private readonly ITicketRepository _ticketRepository;
+    private readonly IEventItemRepository _eventItemRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
@@ -29,6 +31,8 @@ public class StaffService : IStaffService
         IEventRepository eventRepository,
         IOrganizationRepository organizationRepository,
         IIdentityService identityService,
+        ITicketRepository ticketRepository,
+        IEventItemRepository eventItemRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper)
     {
@@ -40,6 +44,8 @@ public class StaffService : IStaffService
         _eventRepository = eventRepository;
         _organizationRepository = organizationRepository;
         _identityService = identityService;
+        _ticketRepository = ticketRepository;
+        _eventItemRepository = eventItemRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
@@ -123,16 +129,6 @@ public class StaffService : IStaffService
         if (existingStaff != null)
             throw new InvalidOperationException("User is already staff for this event");
 
-        // Pre-check: Check for time overlap with other events
-        var hasOverlap = await _staffRepository.HasOverlappingScheduleAsync(
-            invitedUserId,
-            dto.EventStartTime,
-            dto.EventEndTime,
-            dto.EventId);
-
-        if (hasOverlap)
-            throw new InvalidOperationException("User already has a conflicting schedule with another event");
-
         // Check if invitation expiration is valid
         if (dto.InviteExpiredAt <= DateTime.UtcNow)
             throw new InvalidOperationException("Invitation expiration must be in the future");
@@ -142,8 +138,8 @@ public class StaffService : IStaffService
             EventId = dto.EventId,
             OrganizationId = dto.OrganizationId,
             InvitedUserId = invitedUserId,
-            EventStartTime = dto.EventStartTime,
-            EventEndTime = dto.EventEndTime,
+            EventStartTime = DateTime.MinValue,
+            EventEndTime = DateTime.MinValue,
             InviteExpiredAt = dto.InviteExpiredAt,
             Status = InvitationStatus.Pending
         };
@@ -162,8 +158,6 @@ public class StaffService : IStaffService
             InvitedUserId = invitation.InvitedUserId,
             InvitedUserName = invitedUser.Username,
             InvitedUserEmail = invitedUser.Email,
-            EventStartTime = invitation.EventStartTime,
-            EventEndTime = invitation.EventEndTime,
             InviteExpiredAt = invitation.InviteExpiredAt,
             Status = invitation.Status.ToString(),
             CreatedAt = invitation.CreatedAt
@@ -195,29 +189,34 @@ public class StaffService : IStaffService
 
             if (dto.Accept)
             {
-                // Final check for overlap (race condition protection)
-                var hasOverlap = await _staffRepository.HasOverlappingScheduleAsync(
-                    userId,
-                    invitation.EventStartTime,
-                    invitation.EventEndTime,
-                    invitation.EventId);
+                var eventItems = await _eventItemRepository.GetAllByEventIdAsync(invitation.EventId);
+                var now = DateTime.UtcNow;
+                
+                var activeEventItem = eventItems
+                    .FirstOrDefault(ei => ei.Start <= now && ei.End >= now);
+                
+                if (activeEventItem == null)
+                {
+                    activeEventItem = eventItems
+                        .OrderBy(ei => ei.Start)
+                        .FirstOrDefault();
+                }
 
-                if (hasOverlap)
+                if (activeEventItem == null)
                 {
                     invitation.Status = InvitationStatus.Rejected;
                     invitation.RespondedAt = DateTime.UtcNow;
                     await _invitationRepository.UpdateAsync(invitation);
                     await _unitOfWork.CommitAsync();
-                    throw new InvalidOperationException("Cannot accept: User has a conflicting schedule with another event");
+                    throw new InvalidOperationException("Event has no event items");
                 }
 
-                // Create staff assignment
                 var staff = new Staff
                 {
                     EventId = invitation.EventId,
                     UserId = userId,
-                    StartTime = invitation.EventStartTime,
-                    EndTime = invitation.EventEndTime
+                    StartTime = activeEventItem.Start,
+                    EndTime = activeEventItem.End
                 };
 
                 await _staffRepository.AddAsync(staff);
@@ -246,8 +245,6 @@ public class StaffService : IStaffService
                 InvitedUserId = invitation.InvitedUserId,
                 InvitedUserName = user.Username,
                 InvitedUserEmail = user.Email,
-                EventStartTime = invitation.EventStartTime,
-                EventEndTime = invitation.EventEndTime,
                 InviteExpiredAt = invitation.InviteExpiredAt,
                 Status = invitation.Status.ToString(),
                 RespondedAt = invitation.RespondedAt,
@@ -282,8 +279,6 @@ public class StaffService : IStaffService
                 InvitedUserId = invitation.InvitedUserId,
                 InvitedUserName = user.Username,
                 InvitedUserEmail = user.Email,
-                EventStartTime = invitation.EventStartTime,
-                EventEndTime = invitation.EventEndTime,
                 InviteExpiredAt = invitation.InviteExpiredAt,
                 Status = invitation.Status.ToString(),
                 RespondedAt = invitation.RespondedAt,
@@ -320,8 +315,6 @@ public class StaffService : IStaffService
                 InvitedUserId = invitation.InvitedUserId,
                 InvitedUserName = user.Username,
                 InvitedUserEmail = user.Email,
-                EventStartTime = invitation.EventStartTime,
-                EventEndTime = invitation.EventEndTime,
                 InviteExpiredAt = invitation.InviteExpiredAt,
                 Status = invitation.Status.ToString(),
                 RespondedAt = invitation.RespondedAt,
@@ -672,6 +665,178 @@ public class StaffService : IStaffService
                 UserEmail = null
             }).ToList()
         });
+    }
+
+    public async Task<StaffCalendarDto> GetStaffCalendarAsync(Guid userId, int month, int year)
+    {
+        var staffs = await _staffRepository.GetByUserIdAndMonthAsync(userId, month, year);
+        var events = new List<StaffCalendarEventDto>();
+
+        foreach (var staff in staffs)
+        {
+            var evnt = staff.Event;
+            if (evnt == null) continue;
+
+            var org = evnt.Organization;
+            var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var endDate = startDate.AddMonths(1).AddMilliseconds(-1);
+
+            var currentDate = staff.StartTime.Date;
+            var staffEndDate = staff.EndTime.Date;
+            
+            while (currentDate <= staffEndDate && currentDate <= endDate.Date)
+            {
+                if (currentDate >= startDate.Date)
+                {
+                    events.Add(new StaffCalendarEventDto
+                    {
+                        StaffId = staff.Id,
+                        EventId = staff.EventId,
+                        EventName = evnt.Name,
+                        OrganizationName = org?.Name ?? string.Empty,
+                        StartTime = staff.StartTime,
+                        EndTime = staff.EndTime,
+                        Date = currentDate
+                    });
+                }
+                currentDate = currentDate.AddDays(1);
+            }
+        }
+
+        return new StaffCalendarDto
+        {
+            Month = month,
+            Year = year,
+            Events = events
+        };
+    }
+
+    public async Task<CurrentShiftDto?> GetCurrentShiftAsync(Guid userId)
+    {
+        var now = DateTime.UtcNow;
+        var staff = await _staffRepository.GetCurrentShiftAsync(userId, now);
+        
+        if (staff == null)
+            return null;
+
+        var evnt = staff.Event;
+        if (evnt == null)
+            return null;
+
+        var activeEventItem = evnt.EventItem
+            .Where(ei => ei.Start <= now && ei.End >= now)
+            .OrderByDescending(ei => ei.Start)
+            .FirstOrDefault();
+
+        if (activeEventItem == null)
+            return null;
+
+        var org = evnt.Organization;
+        var assignedTasks = staff.TaskAssignments.Select(ta => new AssignedTaskDto
+        {
+            TaskId = ta.Task.Id,
+            TaskName = ta.Task.Name,
+            OptionId = ta.Option.Id,
+            OptionName = ta.Option.OptionName
+        }).ToList();
+
+        return new CurrentShiftDto
+        {
+            StaffId = staff.Id,
+            EventId = staff.EventId,
+            EventItemId = activeEventItem.Id,
+            EventName = evnt.Name,
+            OrganizationName = org?.Name ?? string.Empty,
+            StartTime = activeEventItem.Start,
+            EndTime = activeEventItem.End,
+            AssignedTasks = assignedTasks
+        };
+    }
+
+    public async Task<VerifyTicketResponse> VerifyTicketAsync(Guid userId, Guid staffId, VerifyTicketRequest request)
+    {
+        var staff = await _staffRepository.GetByIdAsync(staffId);
+        if (staff == null || staff.UserId != userId)
+            throw new UnauthorizedAccessException("Staff not found or does not belong to user");
+
+        if (!Guid.TryParse(request.TicketId, out var ticketId))
+        {
+            return new VerifyTicketResponse
+            {
+                IsValid = false,
+                Message = "Invalid ticket ID format"
+            };
+        }
+
+        var ticket = await _ticketRepository.GetByIdAsync(ticketId);
+        if (ticket == null || ticket.IsDeleted)
+        {
+            return new VerifyTicketResponse
+            {
+                IsValid = false,
+                Message = "Ticket not found"
+            };
+        }
+
+        var eventItem = await _eventItemRepository.GetByDetailByIdAsync(ticket.EventItemId);
+        if (eventItem == null)
+        {
+            return new VerifyTicketResponse
+            {
+                IsValid = false,
+                Message = "Event item not found"
+            };
+        }
+
+        if (eventItem.EventId != staff.EventId)
+        {
+            return new VerifyTicketResponse
+            {
+                IsValid = false,
+                Message = "Ticket does not belong to this event"
+            };
+        }
+
+        var evnt = eventItem.Event;
+        if (evnt == null)
+        {
+            return new VerifyTicketResponse
+            {
+                IsValid = false,
+                Message = "Event not found"
+            };
+        }
+
+        var now = DateTime.UtcNow;
+        var eventItems = await _eventItemRepository.GetAllByEventIdAsync(staff.EventId);
+        var activeEventItem = eventItems
+            .FirstOrDefault(ei => ei.Start <= now && ei.End >= now);
+
+        if (activeEventItem == null)
+        {
+            return new VerifyTicketResponse
+            {
+                IsValid = false,
+                Message = "No active event item is currently happening"
+            };
+        }
+
+        return new VerifyTicketResponse
+        {
+            IsValid = true,
+            Message = "Ticket is valid",
+            TicketInfo = new TicketInfoDto
+            {
+                TicketId = ticket.Id,
+                EventItemId = ticket.EventItemId,
+                EventItemName = eventItem.Name,
+                EventId = evnt.Id,
+                EventName = evnt.Name,
+                TicketClassName = ticket.TicketClass?.Name ?? string.Empty,
+                UserId = ticket.UserId,
+                PurchaseDate = ticket.CreatedAt
+            }
+        };
     }
 
     private async Task ValidateEventOwnerAsync(Guid userId, Guid organizationId)

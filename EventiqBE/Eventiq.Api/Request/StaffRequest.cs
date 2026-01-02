@@ -5,8 +5,6 @@ public class CreateStaffInvitationRequest
     public Guid EventId { get; set; }
     public Guid OrganizationId { get; set; }
     public required string InvitedUserEmail { get; set; }
-    public DateTime EventStartTime { get; set; }
-    public DateTime EventEndTime { get; set; }
     public DateTime InviteExpiredAt { get; set; }
 }
 

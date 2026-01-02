@@ -28,5 +28,10 @@ public interface IStaffService
     // Task Assignment
     Task<bool> AssignTaskToStaffAsync(Guid userId, Guid eventId, AssignTaskToStaffDto dto);
     Task<bool> UnassignTaskFromStaffAsync(Guid userId, Guid eventId, Guid taskId, Guid optionId, Guid staffId);
+    
+    // Staff Workspace
+    Task<StaffCalendarDto> GetStaffCalendarAsync(Guid userId, int month, int year);
+    Task<CurrentShiftDto?> GetCurrentShiftAsync(Guid userId);
+    Task<VerifyTicketResponse> VerifyTicketAsync(Guid userId, Guid staffId, VerifyTicketRequest request);
 }
 

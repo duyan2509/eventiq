@@ -64,8 +64,6 @@ public class StaffController : BaseController
                 EventId = request.EventId,
                 OrganizationId = request.OrganizationId,
                 InvitedUserEmail = request.InvitedUserEmail,
-                EventStartTime = request.EventStartTime,
-                EventEndTime = request.EventEndTime,
                 InviteExpiredAt = request.InviteExpiredAt
             };
             var result = await _staffService.InviteStaffAsync(userId, dto);
@@ -534,6 +532,77 @@ public class StaffController : BaseController
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("workspace/calendar")]
+    public async Task<ActionResult<StaffCalendarDto>> GetStaffCalendar([FromQuery] int month, [FromQuery] int year)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty)
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var result = await _staffService.GetStaffCalendarAsync(userId, month, year);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("workspace/current-shift")]
+    public async Task<ActionResult<CurrentShiftDto>> GetCurrentShift()
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty)
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var result = await _staffService.GetCurrentShiftAsync(userId);
+            if (result == null)
+            {
+                return NotFound(new { message = "No active shift found" });
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("workspace/verify-ticket")]
+    public async Task<ActionResult<VerifyTicketResponse>> VerifyTicket(
+        [FromBody] VerifyTicketRequest request,
+        [FromQuery] Guid staffId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty)
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var result = await _staffService.VerifyTicketAsync(userId, staffId, request);
+            return Ok(result);
         }
         catch (UnauthorizedAccessException ex)
         {
