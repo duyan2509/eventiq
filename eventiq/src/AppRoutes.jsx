@@ -23,6 +23,8 @@ import CustomerSeatMap from './pages/CustomerSeatMap';
 import PaymentSkeleton from './pages/PaymentSkeleton';
 import OrgRevenueReport from './pages/OrgRevenueReport';
 import MyTickets from './pages/MyTickets';
+import StaffWorkspace from './pages/StaffWorkspace';
+import Checkin from './pages/Checkin';
 const AppRoutes = () => (
   <Router>
     <Routes>
@@ -71,10 +73,25 @@ const AppRoutes = () => (
       >
         <Route path="/" element={<Home />} />
         <Route path="/events" element={<CustomerEventList />} />
-        <Route path="/events/:eventId" element={<CustomerEventDetail />} />
+        <Route
+          path="/events/:eventId/:eventItemId?"
+          element={
+            <ProtectedRoute roles={['Org', 'Staff']}>
+              <Checkin />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/payment" element={<PaymentSkeleton />} />
         <Route path="/event/:eventId" element={<EventDetail />} />
         <Route path="/my-tickets" element={<MyTickets />} />
+        <Route
+          path="/workspace"
+          element={
+            <ProtectedRoute>
+              <StaffWorkspace />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/org"
           element={

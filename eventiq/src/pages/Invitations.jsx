@@ -132,21 +132,6 @@ const Invitations = () => {
       )
     },
     {
-      title: 'Event Time',
-      key: 'eventTime',
-      render: (_, record) => (
-        <div>
-          <div className="flex items-center gap-1">
-            <CalendarOutlined className="text-gray-400" />
-            <span>{dayjs(record.eventStartTime).format('DD/MM/YYYY HH:mm')}</span>
-          </div>
-          <div className="text-gray-500 text-sm ml-5">
-            to {dayjs(record.eventEndTime).format('DD/MM/YYYY HH:mm')}
-          </div>
-        </div>
-      )
-    },
-    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',

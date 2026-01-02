@@ -169,8 +169,6 @@ const StaffManagement = () => {
         eventId,
         organizationId: orgId,
         invitedUserEmail: values.email,
-        eventStartTime: values.timeRange[0].toISOString(),
-        eventEndTime: values.timeRange[1].toISOString(),
         inviteExpiredAt: values.expiredAt.toISOString()
       });
       success('Invitation sent successfully');
@@ -476,15 +474,6 @@ const StaffManagement = () => {
       }
     },
     {
-      title: 'Event Time',
-      key: 'eventTime',
-      render: (_, record) => (
-        <div>
-          {dayjs(record.eventStartTime).format('DD/MM/YYYY HH:mm')} - {dayjs(record.eventEndTime).format('DD/MM/YYYY HH:mm')}
-        </div>
-      )
-    },
-    {
       title: 'Expires At',
       dataIndex: 'inviteExpiredAt',
       key: 'inviteExpiredAt',
@@ -581,13 +570,6 @@ const StaffManagement = () => {
             ]}
           >
             <Input placeholder="Enter user email" />
-          </Form.Item>
-          <Form.Item
-            name="timeRange"
-            label="Work Time"
-            rules={[{ required: true, message: 'Please select work time' }]}
-          >
-            <RangePicker showTime format="DD/MM/YYYY HH:mm" />
           </Form.Item>
           <Form.Item
             name="expiredAt"

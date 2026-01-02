@@ -106,6 +106,15 @@ const OrganizationDetail = () => {
                                 >
                                     Reports
                                 </Button>
+                                <Button 
+                                    type="default"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/events/${event.id}`);
+                                    }}
+                                >
+                                    Check In
+                                </Button>
                             </div>
                         </Card>
                 ))}

@@ -29,10 +29,9 @@ const ProtectedRoute = ({ roles, children, redirect = '/' }) => {
         return children;
     }
 
-    let userRoles = storedUser?.roles;
+    let userRoles = decodeRolesFromToken(token);
     if (!userRoles || (Array.isArray(userRoles) && userRoles.length === 0)) {
-        // Fallback decode from token
-        userRoles = decodeRolesFromToken(token);
+        userRoles = storedUser?.roles;
     }
     if (!userRoles) return <Navigate to={redirect} replace />;
     if (!Array.isArray(userRoles)) userRoles = [userRoles];

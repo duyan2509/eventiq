@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Input, Button, Space, Dropdown, Avatar, Badge } from 'antd';
 import { useMessage } from '../../hooks/useMessage';
-import { SearchOutlined, UserOutlined, LogoutOutlined, TeamOutlined, BellOutlined } from '@ant-design/icons';
+import { SearchOutlined, UserOutlined, LogoutOutlined, TeamOutlined, BellOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { staffAPI } from '../../services/api';
@@ -88,6 +88,9 @@ const Header = () => {
       case 'tickets':
         navigate('/my-tickets');
         break;
+      case 'workspace':
+        navigate('/workspace');
+        break;
       case 'logout':
         handleLogout();
         break;
@@ -106,6 +109,11 @@ const Header = () => {
       key: 'tickets',
       icon: <UserOutlined />,
       label: 'My Tickets',
+    },
+    {
+      key: 'workspace',
+      icon: <CalendarOutlined />,
+      label: 'Work Space',
     },
     {
       key: 'organizations',
