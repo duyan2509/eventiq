@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IEventTaskRepository, EventTaskRepository>();
         services.AddScoped<ITaskOptionRepository, TaskOptionRepository>();
         services.AddScoped<IStaffTaskAssignmentRepository, StaffTaskAssignmentRepository>();
+        services.AddScoped<ICheckinRepository, CheckinRepository>();
         services.AddScoped<ICheckoutRepository, CheckoutRepository>();
         services.AddScoped<ITicketRepository, TicketRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
