@@ -1,7 +1,6 @@
 using Eventiq.Application.Dtos;
 using Eventiq.Application.Interfaces;
 using Eventiq.Application.Interfaces.Repositories;
-using Eventiq.Application.Interfaces.Repositories;
 using Eventiq.Application.Interfaces.Services;
 using Eventiq.Domain.Entities;
 using Microsoft.Extensions.Logging;
