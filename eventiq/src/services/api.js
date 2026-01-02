@@ -370,6 +370,27 @@ export const staffAPI = {
     const response = await api.delete(`/staff/events/${eventId}/tasks/${taskId}/options/${optionId}/staffs/${staffId}`);
     return response.data;
   },
+
+  getStaffCalendar: async (month, year) => {
+    const response = await api.get('/staff/workspace/calendar', {
+      params: { month, year }
+    });
+    return response.data;
+  },
+
+  getCurrentShift: async () => {
+    const response = await api.get('/staff/workspace/current-shift');
+    return response.data;
+  },
+
+  verifyTicket: async (staffId, ticketId) => {
+    const response = await api.post('/staff/workspace/verify-ticket', {
+      ticketId
+    }, {
+      params: { staffId }
+    });
+    return response.data;
+  },
 };
 
 export const bankAPI = {
@@ -422,6 +443,18 @@ export const customerAPI = {
   // Get seat map for event item
   getEventItemSeatMap: async (eventId, eventItemId) => {
     const response = await api.get(`/events/${eventId}/items/${eventItemId}/seat-map`);
+    return response.data;
+  },
+};
+
+export const checkinAPI = {
+  getCheckins: async (eventId, eventItemId, page = 1, size = 10) => {
+    const response = await api.get(`/checkin/events/${eventId}/items/${eventItemId}?page=${page}&size=${size}`);
+    return response.data;
+  },
+
+  checkinTicket: async (eventItemId, ticketId) => {
+    const response = await api.post(`/checkin/items/${eventItemId}/checkin`, { ticketId });
     return response.data;
   },
 };
