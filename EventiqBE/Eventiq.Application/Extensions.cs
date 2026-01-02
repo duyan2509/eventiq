@@ -15,6 +15,7 @@ public static class Main
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IEventService, EventService>();
         services.AddScoped<IStaffService, StaffService>();
+        services.AddScoped<ICheckinService, CheckinService>();
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IRevenueService, RevenueService>();
