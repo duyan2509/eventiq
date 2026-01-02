@@ -14,6 +14,7 @@ public interface IIdentityService
     Task<string> GeneratePasswordResetTokenAsync(string email);
     Task ChangePasswordAsync(Guid userId, string oldPassword, string newPassword);
     Task ResetPasswordAsync(string email, string code, string newPassword);
+    Task<bool> VerifyPasswordAsync(Guid userId, string password);
     /// <summary>
     /// assign organization role and return new jwt
     /// </summary>

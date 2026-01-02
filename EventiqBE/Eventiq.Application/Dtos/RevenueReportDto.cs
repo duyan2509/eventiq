@@ -102,5 +102,7 @@ public class UserTicketDto
     public DateTime EventStartDate { get; set; }
     public DateTime EventEndDate { get; set; }
     public string Status { get; set; } = "UPCOMING"; // UPCOMING, EXPIRED
+    public string TicketCode { get; set; } = string.Empty;
+    public string TicketStatus { get; set; } = "UNUSED"; // UNUSED, USED
 }
 
