@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using Eventiq.Application.Dtos;
+using Eventiq.Application.Interfaces.Repositories;
 using Eventiq.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -10,10 +11,14 @@ public class IdentityService(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     RoleManager<IdentityRole> roleManager,
-    IJwtService jwtService)
+    IJwtService jwtService,
+    IStaffRepository staffRepository,
+    IEventItemRepository eventItemRepository)
     : IIdentityService
 {
     private readonly IJwtService _jwtService = jwtService;
+    private readonly IStaffRepository _staffRepository = staffRepository;
+    private readonly IEventItemRepository _eventItemRepository = eventItemRepository;
 
     public async Task<UserDto> GetByIdAsync(Guid id)
     {
@@ -102,10 +107,30 @@ public class IdentityService(
             .ToList();
         var securityStamp = await userManager.GetSecurityStampAsync(user);
 
+        var rolesList = roles.ToList();
+        var now = DateTime.UtcNow;
+        var staff = await _staffRepository.GetCurrentShiftAsync(Guid.Parse(user.Id), now);
+        if (staff != null && !rolesList.Contains(AppRoles.Staff))
+        {
+            var evnt = staff.Event;
+            if (evnt != null)
+            {
+                var eventItems = await _eventItemRepository.GetAllByEventIdAsync(evnt.Id);
+                var activeEventItem = eventItems
+                    .Where(ei => ei.Start <= now && ei.End >= now)
+                    .OrderByDescending(ei => ei.Start)
+                    .FirstOrDefault();
+                if (activeEventItem != null)
+                {
+                    rolesList.Add(AppRoles.Staff);
+                }
+            }
+        }
+
         var token = _jwtService
                 .GenerateToken(Guid.Parse(user.Id), 
                 user.Email!,
-                roles.ToList(),
+                rolesList,
                 permissions,
                 securityStamp);
 
@@ -195,10 +220,30 @@ public class IdentityService(
 
             var securityStamp = await userManager.GetSecurityStampAsync(user);
 
+            var rolesList = roles.ToList();
+            var now = DateTime.UtcNow;
+            var staff = await _staffRepository.GetCurrentShiftAsync(userId, now);
+            if (staff != null && !rolesList.Contains(AppRoles.Staff))
+            {
+                var evnt = staff.Event;
+                if (evnt != null)
+                {
+                    var eventItems = await _eventItemRepository.GetAllByEventIdAsync(evnt.Id);
+                    var activeEventItem = eventItems
+                        .Where(ei => ei.Start <= now && ei.End >= now)
+                        .OrderByDescending(ei => ei.Start)
+                        .FirstOrDefault();
+                    if (activeEventItem != null)
+                    {
+                        rolesList.Add(AppRoles.Staff);
+                    }
+                }
+            }
+
             var token = _jwtService
                 .GenerateToken(Guid.Parse(user.Id), 
                     user.Email!,
-                    roles.ToList(),
+                    rolesList,
                     permissions,
                     securityStamp);
             return token;
