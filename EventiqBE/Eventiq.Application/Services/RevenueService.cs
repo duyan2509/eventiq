@@ -426,7 +426,9 @@ public class RevenueService : IRevenueService
                 PurchaseDate = ticket.CreatedAt,
                 EventStartDate = eventItem.Start,
                 EventEndDate = eventItem.End,
-                Status = status
+                Status = status,
+                TicketCode = ticket.TicketCode ?? string.Empty,
+                TicketStatus = ticket.Status.ToString()
             });
         }
 

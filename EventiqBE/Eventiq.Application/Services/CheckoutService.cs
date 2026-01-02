@@ -205,7 +205,8 @@ public class CheckoutService : ICheckoutService
                     {
                         TicketClassId = ticketClass.Id,
                         EventItemId = eventItem.Id,
-                        UserId = userId.ToString()
+                        UserId = userId.ToString(),
+                        TicketCode = GenerateTicketCode()
                     };
                     tickets.Add(ticket);
                 }
@@ -311,6 +312,12 @@ public class CheckoutService : ICheckoutService
             EventKey = checkout.EventKey,
             CreatedAt = checkout.CreatedAt
         };
+    }
+
+    private string GenerateTicketCode()
+    {
+        var guid = Guid.NewGuid().ToString("N").ToUpper();
+        return guid.Substring(0, 8);
     }
 }
 
