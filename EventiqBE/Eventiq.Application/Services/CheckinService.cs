@@ -17,6 +17,7 @@ public class CheckinService : ICheckinService
     private readonly IIdentityService _identityService;
     private readonly IStaffRepository _staffRepository;
     private readonly IVerifyRequestRepository _verifyRequestRepository;
+    private readonly ITransferRequestRepository _transferRequestRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CheckinService(
@@ -27,6 +28,7 @@ public class CheckinService : ICheckinService
         IIdentityService identityService,
         IStaffRepository staffRepository,
         IVerifyRequestRepository verifyRequestRepository,
+        ITransferRequestRepository transferRequestRepository,
         IUnitOfWork unitOfWork)
     {
         _checkinRepository = checkinRepository;
@@ -36,6 +38,7 @@ public class CheckinService : ICheckinService
         _identityService = identityService;
         _staffRepository = staffRepository;
         _verifyRequestRepository = verifyRequestRepository;
+        _transferRequestRepository = transferRequestRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -161,6 +164,10 @@ public class CheckinService : ICheckinService
         if (ticket.Status == TicketStatus.USED)
             throw new InvalidOperationException("Ticket has already been used");
 
+        var pendingTransfer = await _transferRequestRepository.GetByTicketIdAndStatusAsync(ticketId, TransferRequestStatus.PENDING);
+        if (pendingTransfer != null && pendingTransfer.ExpiresAt > DateTime.UtcNow)
+            throw new InvalidOperationException("Cannot check-in ticket that has a pending transfer request");
+
         var isPasswordValid = await _identityService.VerifyPasswordAsync(userId, request.Password);
         if (!isPasswordValid)
             throw new UnauthorizedAccessException("Invalid password");
@@ -200,6 +207,10 @@ public class CheckinService : ICheckinService
 
         if (ticket.Status == TicketStatus.USED)
             throw new InvalidOperationException("Ticket has already been used");
+
+        var pendingTransfer = await _transferRequestRepository.GetByTicketIdAndStatusAsync(ticket.Id, TransferRequestStatus.PENDING);
+        if (pendingTransfer != null && pendingTransfer.ExpiresAt > DateTime.UtcNow)
+            throw new InvalidOperationException("Cannot check-in ticket that has a pending transfer request");
 
         var verifyRequest = await _verifyRequestRepository.GetByTicketIdAndStatusAsync(ticket.Id, VerifyRequestStatus.OWNER_VERIFIED);
         if (verifyRequest == null)
