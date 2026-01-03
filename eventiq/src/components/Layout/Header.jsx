@@ -4,7 +4,7 @@ import { useMessage } from '../../hooks/useMessage';
 import { SearchOutlined, UserOutlined, LogoutOutlined, TeamOutlined, BellOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { staffAPI } from '../../services/api';
+import { staffAPI, transferAPI } from '../../services/api';
 import { signalRService } from '../../services/signalr';
 import LoginModal from '../Auth/LoginModal';
 import RegisterModal from '../Auth/RegisterModal';
@@ -20,11 +20,11 @@ const Header = () => {
   const [registerVisible, setRegisterVisible] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
+  const [pendingTransfersCount, setPendingTransfersCount] = useState(0);
 
   const handleSearch = (value) => {
     if (value.trim()) {
       warning(`Searching: ${value}`);
-      // TODO: Implement search functionality
     }
   };
 
@@ -37,6 +37,7 @@ const Header = () => {
   useEffect(() => {
     if (user) {
       fetchPendingInvitations();
+      fetchPendingTransfers();
       
       // Setup SignalR for real-time updates
       const token = localStorage.getItem('token');
@@ -53,16 +54,25 @@ const Header = () => {
         fetchPendingInvitations();
       };
 
+      const handleTransferRequestReceived = () => {
+        fetchPendingTransfers();
+        success('You have received a new transfer request');
+      };
+
       signalRService.on('StaffInvited', handleStaffInvited);
       signalRService.on('StaffInvitationResponded', handleStaffInvitationResponded);
+      signalRService.on('TransferRequestReceived', handleTransferRequestReceived);
 
-      // Refresh every 30 seconds as fallback
-      const interval = setInterval(fetchPendingInvitations, 30000);
+      const interval = setInterval(() => {
+        fetchPendingInvitations();
+        fetchPendingTransfers();
+      }, 30000);
       
       return () => {
         clearInterval(interval);
         signalRService.off('StaffInvited', handleStaffInvited);
         signalRService.off('StaffInvitationResponded', handleStaffInvitationResponded);
+        signalRService.off('TransferRequestReceived', handleTransferRequestReceived);
       };
     }
   }, [user]);
@@ -74,6 +84,18 @@ const Header = () => {
       setPendingInvitationsCount(pending.length);
     } catch (err) {
       // Silently fail - don't show error for background refresh
+    }
+  };
+
+  const fetchPendingTransfers = async () => {
+    try {
+      const data = await transferAPI.getIncomingTransfers(1, 10);
+      const transfers = data.data || [];
+      const pending = transfers.filter(
+        transfer => transfer.status === 'PENDING' && new Date(transfer.expiresAt) > new Date()
+      );
+      setPendingTransfersCount(pending.length);
+    } catch (err) {
     }
   };
 
@@ -107,8 +129,14 @@ const Header = () => {
     },
     {
       key: 'tickets',
-      icon: <UserOutlined />,
-      label: 'My Tickets',
+      icon: pendingTransfersCount > 0 ? (
+        <Badge count={pendingTransfersCount} size="small">
+          <UserOutlined />
+        </Badge>
+      ) : (
+        <UserOutlined />
+      ),
+      label: `My Tickets${pendingTransfersCount > 0 ? ` (${pendingTransfersCount})` : ''}`,
     },
     {
       key: 'workspace',

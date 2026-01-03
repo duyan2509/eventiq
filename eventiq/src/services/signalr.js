@@ -105,6 +105,10 @@ class SignalRService {
       this.emit('TicketCheckedIn', data);
     });
 
+    this.connection.on('TransferRequestReceived', (data) => {
+      this.emit('TransferRequestReceived', data);
+    });
+
     return this.connection.start().then(() => {
       console.log('SignalR Connected successfully');
       this.connectionAttempts = 0; // Reset on success
