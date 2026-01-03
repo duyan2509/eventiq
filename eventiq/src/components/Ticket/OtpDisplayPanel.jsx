@@ -22,6 +22,7 @@ const OtpDisplayPanel = ({ ticketCode, otp, expiresIn }) => {
           <Text strong>OTP:</Text>
           <div style={{ marginTop: 8 }}>
             <Statistic
+              precision={0}
               value={otp}
               prefix={<KeyOutlined />}
               valueStyle={{ fontSize: 32, fontFamily: 'monospace', color: '#1890ff' }}

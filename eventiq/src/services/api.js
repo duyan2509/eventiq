@@ -546,6 +546,25 @@ export const revenueAPI = {
   },
 };
 
+export const transferAPI = {
+  transferTicket: async (ticketId, toUserEmail, password) => {
+    const response = await api.post(`/tickets/${ticketId}/transfer`, { toUserEmail, password });
+    return response.data;
+  },
+  getIncomingTransfers: async (page = 1, size = 10) => {
+    const response = await api.get('/tickets/transfers/incoming', { params: { page, size } });
+    return response.data;
+  },
+  acceptTransfer: async (transferId) => {
+    const response = await api.post(`/tickets/transfers/${transferId}/accept`);
+    return response.data;
+  },
+  rejectTransfer: async (transferId) => {
+    const response = await api.post(`/tickets/transfers/${transferId}/reject`);
+    return response.data;
+  },
+};
+
 export const payoutAPI = {
   getPendingPayouts: async () => {
     const response = await api.get('/payout/pending');
