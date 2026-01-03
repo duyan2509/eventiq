@@ -19,6 +19,7 @@ public static class Main
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IRevenueService, RevenueService>();
+        services.AddScoped<ITransferService, TransferService>();
         return services;
     }
     public static IServiceCollection AddAutoMapper(this IServiceCollection services)
