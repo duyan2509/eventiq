@@ -14,6 +14,7 @@ public class CustomerEventDto
     public required DateTime Start { get; set; }
     public decimal? LowestPrice { get; set; } // Giá vé thấp nhất
     public required string OrganizationName { get; set; }
+    public string? ProvinceName { get; set; }
 }
 
 public class CustomerEventDetailDto

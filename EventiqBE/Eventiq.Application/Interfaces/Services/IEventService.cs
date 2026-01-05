@@ -41,6 +41,7 @@ public interface IEventService
     
     // Customer/public methods
     Task<CustomerEventListDto> GetPublishedEventsAsync();
+    Task<PaginatedResult<CustomerEventDto>> GetEventsAsync(string? search = null, int page = 1, int size = 10, string? timeSort = null, string? province = null, string? eventType = null);
     Task<CustomerEventDetailDto> GetPublishedEventDetailAsync(Guid eventId);
     Task<CustomerSeatMapDto> GetEventItemSeatMapAsync(Guid eventId, Guid eventItemId);
     

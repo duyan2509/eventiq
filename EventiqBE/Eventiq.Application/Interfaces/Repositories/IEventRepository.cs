@@ -9,4 +9,5 @@ public interface IEventRepository:IGenericRepository<Event>
     Task<PaginatedResult<Event>> GetByOrgAsync(Guid orgId, int page, int size);
     Task<PaginatedResult<Event>> GetAllAsync(int page, int size, EventStatus? status = null);
     Task<Event?> GetDetailEventAsync(Guid eventId);
+    Task<PaginatedResult<Event>> GetEventsAsync(string? search = null, int page = 1, int size = 10, string? timeSort = null, string? province = null, string? eventType = null);
 }

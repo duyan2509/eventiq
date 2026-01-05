@@ -56,6 +56,10 @@ public class EventService:IEventService
 
     public async Task<CreateEventResponse> CreateEventInfoAsync(Guid userId, CreateEventDto dto)
     {
+        var isBanned = await _identityService.IsUserBannedAsync(userId);
+        if (isBanned)
+            throw new UnauthorizedAccessException("Your account has been banned. You cannot create events.");
+
         string? uploadedUrl = null;
         var org = await _organizationRepository.GetByIdAsync(dto.OrganizationId);
         if (org == null)
@@ -233,32 +237,6 @@ public class EventService:IEventService
         var ticketClass = await _ticketClassRepository.GetByIdAsync(ticketClassId);
         if (ticketClass == null)
             throw new Exception("Ticket class not found");
-        
-        if (dto.SaleEnd.HasValue && dto.SaleStart.HasValue)
-        {
-            if (dto.SaleEnd > dto.SaleStart)
-            {
-                ticketClass.SaleEnd = dto.SaleEnd.Value;
-                ticketClass.SaleStart = dto.SaleStart.Value;
-            }
-            else throw new Exception("Invalid sale time");
-        }
-        else if (dto.SaleEnd.HasValue)
-        {
-            if (dto.SaleEnd > ticketClass.SaleStart)
-            {
-                ticketClass.SaleEnd = dto.SaleEnd.Value;
-            }
-            else throw new Exception($"Sale end must be after sale start {ticketClass.SaleStart}");
-        }
-        else if (dto.SaleStart.HasValue)
-        {
-            if (ticketClass.SaleEnd > dto.SaleStart)
-            {
-                ticketClass.SaleStart = dto.SaleStart.Value;
-            }
-            else throw new Exception($"Sale start must be before sale end {ticketClass.SaleEnd}");
-        } 
         
         if(!string.IsNullOrEmpty(dto.Name))
             ticketClass.Name = dto.Name;
@@ -959,6 +937,11 @@ public class EventService:IEventService
         
         foreach (var evnt in publishedEvents.Data)
         {
+            var eventItems = await _eventItemRepository.GetAllByEventIdAsync(evnt.Id);
+            if (!eventItems.Any()) continue;
+            
+            var earliestStart = eventItems.Min(ei => ei.Start);
+            
             var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(evnt.Id);
             decimal? lowestPrice = ticketClasses.Any() 
                 ? ticketClasses.Min(tc => tc.Price) 
@@ -969,12 +952,13 @@ public class EventService:IEventService
                 Id = evnt.Id,
                 Name = evnt.Name,
                 Banner = evnt.Banner,
-                Start = evnt.Start,
+                Start = earliestStart,
                 LowestPrice = lowestPrice,
-                OrganizationName = evnt.Organization?.Name ?? "Unknown"
+                OrganizationName = evnt.Organization?.Name ?? "Unknown",
+                ProvinceName = evnt.EventAddress?.ProvinceName
             };
             
-            if (evnt.Start >= now)
+            if (earliestStart >= now)
             {
                 upcomingEvents.Add(customerEvent);
             }
@@ -991,6 +975,47 @@ public class EventService:IEventService
         {
             UpcomingEvents = upcomingEvents,
             PastEvents = pastEvents
+        };
+    }
+
+    public async Task<PaginatedResult<CustomerEventDto>> GetEventsAsync(string? search = null, int page = 1, int size = 10, string? timeSort = null, string? province = null, string? eventType = null)
+    {
+        var eventsResult = await _eventRepository.GetEventsAsync(search, page, size, timeSort, province, eventType);
+        
+        var customerEvents = new List<CustomerEventDto>();
+        
+        foreach (var evnt in eventsResult.Data)
+        {
+            var eventItems = evnt.EventItem?.ToList() ?? new List<EventItem>();
+            if (!eventItems.Any()) continue;
+            
+            var earliestStart = eventItems.Min(ei => ei.Start);
+            
+            var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(evnt.Id);
+            decimal? lowestPrice = ticketClasses.Any() 
+                ? ticketClasses.Min(tc => tc.Price) 
+                : null;
+            
+            var customerEvent = new CustomerEventDto
+            {
+                Id = evnt.Id,
+                Name = evnt.Name,
+                Banner = evnt.Banner,
+                Start = earliestStart,
+                LowestPrice = lowestPrice,
+                OrganizationName = evnt.Organization?.Name ?? "Unknown",
+                ProvinceName = evnt.EventAddress?.ProvinceName
+            };
+            
+            customerEvents.Add(customerEvent);
+        }
+        
+        return new PaginatedResult<CustomerEventDto>
+        {
+            Data = customerEvents,
+            Total = eventsResult.Total,
+            Page = eventsResult.Page,
+            Size = eventsResult.Size
         };
     }
 

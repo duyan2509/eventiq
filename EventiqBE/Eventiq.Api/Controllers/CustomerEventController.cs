@@ -15,16 +15,19 @@ public class CustomerEventController : BaseController
         _eventService = eventService;
     }
 
-    /// <summary>
-    /// Get published events list (public endpoint)
-    /// </summary>
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ActionResult<CustomerEventListDto>> GetPublishedEvents()
+    public async Task<ActionResult<PaginatedResult<CustomerEventDto>>> GetEvents(
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int size = 10,
+        [FromQuery] string? timeSort = null,
+        [FromQuery] string? province = null,
+        [FromQuery] string? eventType = null)
     {
         try
         {
-            var result = await _eventService.GetPublishedEventsAsync();
+            var result = await _eventService.GetEventsAsync(search, page, size, timeSort, province, eventType);
             return Ok(result);
         }
         catch (Exception ex)
