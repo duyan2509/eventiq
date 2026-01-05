@@ -17,6 +17,7 @@ public class PaymentService : IPaymentService
     private readonly ISeatService _seatService;
     private readonly ITicketRepository _ticketRepository;
     private readonly IEventSeatRepository _eventSeatRepository;
+    private readonly IEventSeatStateRepository _eventSeatStateRepository;
     private readonly IRedisService _redisService;
     private readonly IPayoutRepository _payoutRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -31,6 +32,7 @@ public class PaymentService : IPaymentService
         ISeatService seatService,
         ITicketRepository ticketRepository,
         IEventSeatRepository eventSeatRepository,
+        IEventSeatStateRepository eventSeatStateRepository,
         IRedisService redisService,
         IPayoutRepository payoutRepository,
         IUnitOfWork unitOfWork,
@@ -44,6 +46,7 @@ public class PaymentService : IPaymentService
         _seatService = seatService;
         _ticketRepository = ticketRepository;
         _eventSeatRepository = eventSeatRepository;
+        _eventSeatStateRepository = eventSeatStateRepository;
         _redisService = redisService;
         _payoutRepository = payoutRepository;
         _unitOfWork = unitOfWork;
@@ -240,6 +243,7 @@ public class PaymentService : IPaymentService
 
                 var ticketClasses = await _ticketRepository.GetTicketClassesByEventItemIdAsync(eventItem.Id);
                 var tickets = new List<Ticket>();
+                var seatTicketMap = new Dictionary<Guid, Ticket>();
 
                 foreach (var seatLabel in seatIds)
                 {
@@ -275,12 +279,33 @@ public class PaymentService : IPaymentService
                         UserId = payment.UserId.ToString()
                     };
                     tickets.Add(ticket);
+                    seatTicketMap[seat.Id] = ticket;
                 }
 
                 if (tickets.Count > 0)
                 {
                     await _ticketRepository.AddRangeAsync(tickets);
                     _logger.LogInformation("Created {Count} tickets for payment {PaymentId}", tickets.Count, ipnResult.PaymentId);
+                    
+                    foreach (var kvp in seatTicketMap)
+                    {
+                        var seatId = kvp.Key;
+                        var ticket = kvp.Value;
+                        
+                        var seatState = await _eventSeatStateRepository.GetByEventItemAndSeatAsync(eventItem.Id, seatId);
+                        if (seatState != null)
+                        {
+                            seatState.Status = SeatStatus.Paid;
+                            seatState.TicketId = ticket.Id;
+                            seatState.UpdatedAt = DateTime.UtcNow;
+                            await _eventSeatStateRepository.UpdateAsync(seatState);
+                            _logger.LogInformation("Updated EventSeatState for seat {SeatId} to Paid with ticket {TicketId}", seatId, ticket.Id);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("EventSeatState not found for eventItem {EventItemId} and seat {SeatId}", eventItem.Id, seatId);
+                        }
+                    }
                 }
 
                 // Update payment

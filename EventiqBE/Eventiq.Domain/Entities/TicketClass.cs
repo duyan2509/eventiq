@@ -10,7 +10,5 @@ public class TicketClass:BaseEntity
     public string? Color { get; set; } 
     public int TotalQuantity { get; set; }  = 0;
     public int SoldQuantity { get; set; } = 0;
-    public DateTime SaleStart { get; set; }
-    public DateTime SaleEnd { get; set; }
 }
 

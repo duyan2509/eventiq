@@ -34,7 +34,7 @@ public class AuthController(IUserService userService) : BaseController
             var response = await userService.LoginAsync(loginDto);
             return Ok(response);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }
