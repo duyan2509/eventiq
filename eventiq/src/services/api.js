@@ -272,6 +272,23 @@ export const adminAPI = {
     const response = await api.get(`/admin/events/${eventId}/approval-history`);
     return response.data;
   },
+
+  getUsers: async (page = 1, size = 10, emailSearch = null) => {
+    const params = { page, size };
+    if (emailSearch) params.emailSearch = emailSearch;
+    const response = await api.get('/admin/users', { params });
+    return response.data;
+  },
+
+  banUser: async (userId, banReason = null) => {
+    const response = await api.post(`/admin/users/${userId}/ban`, { banReason });
+    return response.data;
+  },
+
+  unbanUser: async (userId) => {
+    const response = await api.post(`/admin/users/${userId}/unban`);
+    return response.data;
+  },
 };
 
 const handleBankAPIError = (error) => {
@@ -436,6 +453,18 @@ export const customerAPI = {
   // Get published events list (upcoming and past)
   getPublishedEvents: async () => {
     const response = await api.get('/events');
+    return response.data;
+  },
+
+  getEvents: async (search = '', page = 1, size = 10, timeSort = '', province = '', eventType = '') => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    params.append('page', page);
+    params.append('size', size);
+    if (timeSort) params.append('timeSort', timeSort);
+    if (province) params.append('province', province);
+    if (eventType) params.append('eventType', eventType);
+    const response = await api.get(`/events?${params.toString()}`);
     return response.data;
   },
 

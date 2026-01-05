@@ -14,6 +14,7 @@ import CreateEvent from './pages/CreateEvent';
 import UpdateEvent from './pages/UpdateEvent';
 import EventDetail from './pages/EventDetail';
 import ProtectedRoute from './components/ProtectedRoute';
+import BannedUserRoute from './components/BannedUserRoute';
 import SeatMapDesignerPage from './pages/SeatMapDesignerPage';
 import StaffManagement from './pages/StaffManagement';
 import Invitations from './pages/Invitations';
@@ -23,6 +24,7 @@ import CustomerSeatMap from './pages/CustomerSeatMap';
 import PaymentSkeleton from './pages/PaymentSkeleton';
 import OrgRevenueReport from './pages/OrgRevenueReport';
 import MyTickets from './pages/MyTickets';
+import MyTicketsB from './pages/MyTicketsB';
 import StaffWorkspace from './pages/StaffWorkspace';
 import Checkin from './pages/Checkin';
 const AppRoutes = () => (
@@ -32,17 +34,21 @@ const AppRoutes = () => (
       <Route
         path="/org/:orgId/event/:eventId/seat-map/:chartId"
         element={
-          <ProtectedRoute roles="Org">
-            <SeatMapDesignerPage />
-          </ProtectedRoute>
+          <BannedUserRoute>
+            <ProtectedRoute roles="Org">
+              <SeatMapDesignerPage />
+            </ProtectedRoute>
+          </BannedUserRoute>
         }
       />
       <Route
         path="/org/:orgId/event/:eventId/chart/:chartId"
         element={
-          <ProtectedRoute roles="Org">
-            <SeatMapDesignerPage />
-          </ProtectedRoute>
+          <BannedUserRoute>
+            <ProtectedRoute roles="Org">
+              <SeatMapDesignerPage />
+            </ProtectedRoute>
+          </BannedUserRoute>
         }
       />
       
@@ -83,69 +89,100 @@ const AppRoutes = () => (
         />
         <Route path="/payment" element={<PaymentSkeleton />} />
         <Route path="/event/:eventId" element={<EventDetail />} />
-        <Route path="/my-tickets" element={<MyTickets />} />
+        <Route 
+          path="/my-tickets" 
+          element={
+            <BannedUserRoute>
+              <MyTickets />
+            </BannedUserRoute>
+          } 
+        />
+        <Route 
+          path="/my-ticket-b" 
+          element={
+            <BannedUserRoute>
+              <MyTicketsB />
+            </BannedUserRoute>
+          } 
+        />
         <Route
           path="/workspace"
           element={
-            <ProtectedRoute>
-              <StaffWorkspace />
-            </ProtectedRoute>
+            <BannedUserRoute>
+              <ProtectedRoute>
+                <StaffWorkspace />
+              </ProtectedRoute>
+            </BannedUserRoute>
           }
         />
         <Route
           path="/org"
           element={
-            <ProtectedRoute roles="Org">
-              <OrgList />
-            </ProtectedRoute>
+            <BannedUserRoute>
+              <ProtectedRoute roles="Org">
+                <OrgList />
+              </ProtectedRoute>
+            </BannedUserRoute>
           }
         />
         <Route
           path="/org/:orgId"
           element={
-            <ProtectedRoute roles="Org">
-              <OrganizationDetail />
-            </ProtectedRoute>
+            <BannedUserRoute>
+              <ProtectedRoute roles="Org">
+                <OrganizationDetail />
+              </ProtectedRoute>
+            </BannedUserRoute>
           }
         />
         <Route
           path="/create-event"
           element={
-            <ProtectedRoute roles="Org">
-              <CreateEvent />
-            </ProtectedRoute>
+            <BannedUserRoute>
+              <ProtectedRoute roles="Org">
+                <CreateEvent />
+              </ProtectedRoute>
+            </BannedUserRoute>
           }
         />
         <Route
           path="/org/:orgId/event/:eventId"
           element={
-            <ProtectedRoute roles="Org">
-              <UpdateEvent />
-            </ProtectedRoute>
+            <BannedUserRoute>
+              <ProtectedRoute roles="Org">
+                <UpdateEvent />
+              </ProtectedRoute>
+            </BannedUserRoute>
           }
         />
         <Route
           path="/org/:orgId/event/:eventId/staff"
           element={
-            <ProtectedRoute roles="Org">
-              <StaffManagement />
-            </ProtectedRoute>
+            <BannedUserRoute>
+              <ProtectedRoute roles="Org">
+                <StaffManagement />
+              </ProtectedRoute>
+            </BannedUserRoute>
           }
         />
         <Route
           path="/org/:orgId/event/:eventId/revenue"
           element={
-            <ProtectedRoute roles="Org">
-              <OrgRevenueReport />
-            </ProtectedRoute>
+            <BannedUserRoute>
+              <ProtectedRoute roles="Org">
+                <OrgRevenueReport />
+              </ProtectedRoute>
+            </BannedUserRoute>
           }
         />
         <Route
           path="/invitations"
           element={
-            <ProtectedRoute>
-              <Invitations />
-            </ProtectedRoute>
+            <BannedUserRoute>
+              <ProtectedRoute>
+                <Invitations />
+              </ProtectedRoute>
+            </BannedUserRoute>
           }
         />
       </Route>

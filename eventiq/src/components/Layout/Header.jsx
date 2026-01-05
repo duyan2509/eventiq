@@ -24,7 +24,9 @@ const Header = () => {
 
   const handleSearch = (value) => {
     if (value.trim()) {
-      warning(`Searching: ${value}`);
+      navigate(`/events?search=${encodeURIComponent(value)}&page=1`);
+    } else {
+      navigate('/events');
     }
   };
 
@@ -100,18 +102,34 @@ const Header = () => {
   };
 
   const handleMenuClick = ({ key }) => {
+    const isBanned = user?.isBanned || user?.IsBanned || false;
     switch (key) {
       case 'organizations':
-        navigate('/org');
+        if (isBanned) {
+          warning('Your account has been banned. You cannot access this page.');
+          navigate('/my-ticket-b');
+        } else {
+          navigate('/org');
+        }
         break;
       case 'invitations':
-        navigate('/invitations');
+        if (isBanned) {
+          warning('Your account has been banned. You cannot access this page.');
+          navigate('/my-ticket-b');
+        } else {
+          navigate('/invitations');
+        }
         break;
       case 'tickets':
-        navigate('/my-tickets');
+        navigate(isBanned ? '/my-ticket-b' : '/my-tickets');
         break;
       case 'workspace':
-        navigate('/workspace');
+        if (isBanned) {
+          warning('Your account has been banned. You cannot access this page.');
+          navigate('/my-ticket-b');
+        } else {
+          navigate('/workspace');
+        }
         break;
       case 'logout':
         handleLogout();
@@ -121,43 +139,50 @@ const Header = () => {
     }
   };
 
+  const isBanned = user?.isBanned || user?.IsBanned || false;
   const userMenuItems = [
     {
       key: 'profile',
       icon: <UserOutlined />,
       label: 'Profile',
+      disabled: isBanned,
     },
     {
       key: 'tickets',
-      icon: pendingTransfersCount > 0 ? (
+      icon: pendingTransfersCount > 0 && !isBanned ? (
         <Badge count={pendingTransfersCount} size="small">
           <UserOutlined />
         </Badge>
       ) : (
         <UserOutlined />
       ),
-      label: `My Tickets${pendingTransfersCount > 0 ? ` (${pendingTransfersCount})` : ''}`,
+      label: isBanned 
+        ? 'My Tickets (Banned)' 
+        : `My Tickets${pendingTransfersCount > 0 ? ` (${pendingTransfersCount})` : ''}`,
     },
     {
       key: 'workspace',
       icon: <CalendarOutlined />,
       label: 'Work Space',
+      disabled: isBanned,
     },
     {
       key: 'organizations',
       icon: <TeamOutlined />,
       label: 'My Organizations',
+      disabled: isBanned,
     },
     {
       key: 'invitations',
-      icon: pendingInvitationsCount > 0 ? (
+      icon: pendingInvitationsCount > 0 && !isBanned ? (
         <Badge count={pendingInvitationsCount} size="small">
           <BellOutlined />
         </Badge>
       ) : (
         <BellOutlined />
       ),
-      label: `My Invitations${pendingInvitationsCount > 0 ? ` (${pendingInvitationsCount})` : ''}`,
+      label: `My Invitations${pendingInvitationsCount > 0 && !isBanned ? ` (${pendingInvitationsCount})` : ''}`,
+      disabled: isBanned,
     },
     {
       type: 'divider',
