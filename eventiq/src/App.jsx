@@ -1,5 +1,5 @@
 import React from 'react';
-import { ConfigProvider, Spin } from 'antd';
+import { ConfigProvider, Spin, App as AntdApp } from 'antd';
 import enUS from 'antd/locale/en_US';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AppRoutes from './AppRoutes';
@@ -22,9 +22,11 @@ const AppContent = () => {
 function App() {
   return (
     <ConfigProvider locale={enUS}>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <AntdApp>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </AntdApp>
     </ConfigProvider>
   );
 }

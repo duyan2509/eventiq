@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Form, Input, Button, Space, Typography } from 'antd';
-import { useMessage } from '../../hooks/useMessage';
+import { Modal, Form, Input, Button, Space, Typography, App } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import ForgotPasswordModal from './ForgotPasswordModal';
@@ -13,8 +12,8 @@ const LoginModal = ({ visible, onCancel, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
   const { login } = useAuth();
-  const { success, error, contextHolder } = useMessage();
   const navigate = useNavigate();
+  const { message } = App.useApp();
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -37,10 +36,12 @@ const LoginModal = ({ visible, onCancel, onSuccess }) => {
         onSuccess();
         form.resetFields();
       } else {
-        error(result.message);
+        console.log('Login failed, showing error:', result.message);
+        message.error(result.message || 'Login failed');
       }
     } catch (err) {
-      error('An error occurred, please try again');
+      console.log('Login error caught:', err);
+      message.error(err?.response?.data?.message || 'An error occurred, please try again');
     } finally {
       setLoading(false);
     }
@@ -53,8 +54,7 @@ const LoginModal = ({ visible, onCancel, onSuccess }) => {
 
   return (
     <>
-  {contextHolder}
-  <Modal
+      <Modal
         title="Login"
         open={visible}
         onCancel={handleCancel}
@@ -118,7 +118,7 @@ const LoginModal = ({ visible, onCancel, onSuccess }) => {
           <div className="text-center">
             <Text>
               Forgot password?{' '}
-              <Link 
+              <Link
                 onClick={() => setForgotPasswordVisible(true)}
                 className="text-blue-500 hover:text-blue-600"
               >
@@ -134,7 +134,7 @@ const LoginModal = ({ visible, onCancel, onSuccess }) => {
         onCancel={() => setForgotPasswordVisible(false)}
         onSuccess={() => {
           setForgotPasswordVisible(false);
-          success('Password reset email sent');
+          message.success('Password reset email sent');
         }}
       />
     </>
