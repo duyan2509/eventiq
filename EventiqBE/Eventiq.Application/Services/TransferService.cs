@@ -30,6 +30,10 @@ public class TransferService : ITransferService
 
     public async Task<string> TransferTicketAsync(Guid senderUserId, Guid ticketId, TransferTicketRequestDto request)
     {
+        var isBanned = await _identityService.IsUserBannedAsync(senderUserId);
+        if (isBanned)
+            throw new UnauthorizedAccessException("Your account has been banned. You cannot transfer tickets.");
+
         var isPasswordValid = await _identityService.VerifyPasswordAsync(senderUserId, request.Password);
         if (!isPasswordValid)
             throw new UnauthorizedAccessException("Invalid password");
@@ -123,6 +127,10 @@ public class TransferService : ITransferService
 
     public async Task AcceptTransferAsync(Guid receiverUserId, Guid transferId)
     {
+        var isBanned = await _identityService.IsUserBannedAsync(receiverUserId);
+        if (isBanned)
+            throw new UnauthorizedAccessException("Your account has been banned. You cannot accept transfer requests.");
+
         var transfer = await _transferRequestRepository.GetByIdAsync(transferId);
         if (transfer == null || transfer.IsDeleted)
             throw new KeyNotFoundException("Transfer request not found");

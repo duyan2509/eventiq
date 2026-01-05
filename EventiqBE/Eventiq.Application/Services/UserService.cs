@@ -51,4 +51,19 @@ public class UserService(IIdentityService identityService, IEmailService emailSe
     {
         await _identityService.ResetPasswordAsync(email, code, newPassword);
     }
+
+    public async Task BanUserAsync(Guid userId, Guid adminUserId, string? banReason)
+    {
+        await _identityService.BanUserAsync(userId, adminUserId, banReason);
+    }
+
+    public async Task UnbanUserAsync(Guid userId, Guid adminUserId)
+    {
+        await _identityService.UnbanUserAsync(userId, adminUserId);
+    }
+
+    public async Task<PaginatedResult<AdminUserDto>> GetUsersAsync(int page, int size, string? emailSearch)
+    {
+        return await _identityService.GetUsersAsync(page, size, emailSearch);
+    }
 }

@@ -12,4 +12,7 @@ public interface IUserService
     Task RequestResetPasswordAsync(string email);
     Task ChangePasswordAsync(Guid userId, string oldPassword,  string newPassword);
     Task ConfirmResetPasswordAsync(string email, string code, string newPassword);
+    Task BanUserAsync(Guid userId, Guid adminUserId, string? banReason);
+    Task UnbanUserAsync(Guid userId, Guid adminUserId);
+    Task<PaginatedResult<AdminUserDto>> GetUsersAsync(int page, int size, string? emailSearch);
 }

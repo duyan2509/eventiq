@@ -8,7 +8,8 @@ public class UserDto
     public string? Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     
-    public List<string> Roles { get; set; } = new List<string>(); 
+    public List<string> Roles { get; set; } = new List<string>();
+    public bool IsBanned { get; set; } = false;
 }
 
 public class CreateUserDto
@@ -55,4 +56,19 @@ public class ChangePasswordRequest
 {
     public string CurrentPassword { get; set; } = string.Empty;
     public string NewPassword { get; set; } = string.Empty;
+}
+
+public class AdminUserDto
+{
+    public string Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public List<string> Roles { get; set; } = new List<string>();
+    public bool IsBanned { get; set; }
+    public DateTime? BannedAt { get; set; }
+    public string? BanReason { get; set; }
+}
+
+public class BanUserRequest
+{
+    public string? BanReason { get; set; }
 }

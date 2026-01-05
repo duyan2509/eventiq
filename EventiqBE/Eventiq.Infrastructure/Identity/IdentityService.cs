@@ -2,6 +2,7 @@
 using Eventiq.Application.Dtos;
 using Eventiq.Application.Interfaces.Repositories;
 using Eventiq.Application.Interfaces.Services;
+using Eventiq.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,12 +14,14 @@ public class IdentityService(
     RoleManager<IdentityRole> roleManager,
     IJwtService jwtService,
     IStaffRepository staffRepository,
-    IEventItemRepository eventItemRepository)
+    IEventItemRepository eventItemRepository,
+    ITransferRequestRepository transferRequestRepository)
     : IIdentityService
 {
     private readonly IJwtService _jwtService = jwtService;
     private readonly IStaffRepository _staffRepository = staffRepository;
     private readonly IEventItemRepository _eventItemRepository = eventItemRepository;
+    private readonly ITransferRequestRepository _transferRequestRepository = transferRequestRepository;
 
     public async Task<UserDto> GetByIdAsync(Guid id)
     {
@@ -33,7 +36,8 @@ public class IdentityService(
             Id = user.Id,
             Email = user.Email!,
             Username = user.UserName,
-            Roles =   roles.ToList()
+            Roles =   roles.ToList(),
+            IsBanned = user.IsBanned
         };
     }
 
@@ -48,7 +52,8 @@ public class IdentityService(
             Id = user.Id,
             Email = user.Email!,
             Username = user.UserName,
-            Roles = roles?.ToList() ?? new List<string>()
+            Roles = roles?.ToList() ?? new List<string>(),
+            IsBanned = user.IsBanned
         };
     }
 
@@ -72,6 +77,7 @@ public class IdentityService(
             Id = user.Id,
             Email = user.Email!,
             Username = user.UserName,
+            IsBanned = user.IsBanned
         };
     }
 
@@ -85,6 +91,9 @@ public class IdentityService(
         var user = await userManager.FindByEmailAsync(dto.Email);
         if (user == null)
             throw new Exception($"User not found with email {dto.Email}");
+
+        if (user.IsBanned)
+            throw new Exception("Your account has been banned. Please contact support for more information.");
 
         var result = await signInManager.CheckPasswordSignInAsync(user, dto.Password, false);
 
@@ -266,5 +275,100 @@ public class IdentityService(
             .SelectMany(u => u.Organizations.Select(o => o.Id))
             .ToListAsync();
         return orgIds;
+    }
+
+    public async Task BanUserAsync(Guid userId, Guid adminUserId, string? banReason)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+            throw new KeyNotFoundException("User not found");
+
+        if (user.IsBanned)
+            throw new InvalidOperationException("User is already banned");
+
+        user.IsBanned = true;
+        user.BannedAt = DateTime.UtcNow;
+        user.BanReason = banReason;
+        user.BannedByUserId = adminUserId.ToString();
+
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+
+        var pendingTransfers = await _transferRequestRepository.GetAllAsync();
+        var userPendingTransfers = pendingTransfers
+            .Where(tr => tr.ToUserId == userId.ToString() && tr.Status == TransferRequestStatus.PENDING)
+            .ToList();
+
+        foreach (var transfer in userPendingTransfers)
+        {
+            transfer.Status = TransferRequestStatus.REJECTED;
+            await _transferRequestRepository.UpdateAsync(transfer);
+        }
+    }
+
+    public async Task UnbanUserAsync(Guid userId, Guid adminUserId)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+            throw new KeyNotFoundException("User not found");
+
+        if (!user.IsBanned)
+            throw new InvalidOperationException("User is not banned");
+
+        user.IsBanned = false;
+        user.UnbannedAt = DateTime.UtcNow;
+        user.UnbannedByUserId = adminUserId.ToString();
+
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+    }
+
+    public async Task<PaginatedResult<AdminUserDto>> GetUsersAsync(int page, int size, string? emailSearch)
+    {
+        var query = userManager.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(emailSearch))
+        {
+            query = query.Where(u => u.Email != null && u.Email.Contains(emailSearch));
+        }
+
+        var total = await query.CountAsync();
+        var users = await query
+            .Skip((page - 1) * size)
+            .Take(size)
+            .ToListAsync();
+
+        var userDtos = new List<AdminUserDto>();
+        foreach (var user in users)
+        {
+            var roles = await userManager.GetRolesAsync(user);
+            userDtos.Add(new AdminUserDto
+            {
+                Id = user.Id,
+                Email = user.Email ?? string.Empty,
+                Roles = roles.ToList(),
+                IsBanned = user.IsBanned,
+                BannedAt = user.BannedAt,
+                BanReason = user.BanReason
+            });
+        }
+
+        return new PaginatedResult<AdminUserDto>
+        {
+            Data = userDtos,
+            Total = total,
+            Page = page,
+            Size = size
+        };
+    }
+
+    public async Task<bool> IsUserBannedAsync(Guid userId)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+            return false;
+        return user.IsBanned;
     }
 }

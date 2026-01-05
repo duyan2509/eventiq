@@ -30,6 +30,10 @@ public class OrganizationService:IOrganizationService
     private readonly IUserService _userService;
     public async Task<CreateOrganizationResponse> CreateOrganizationAsync(Guid userId, CreateOrganizationDto dto)
     {
+        var isBanned = await _identityService.IsUserBannedAsync(userId);
+        if (isBanned)
+            throw new UnauthorizedAccessException("Your account has been banned. You cannot create organizations.");
+
         string? uploadedUrl = null;
 
         try

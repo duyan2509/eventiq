@@ -24,4 +24,8 @@ public interface IIdentityService
     Task RemoveOrgRole(Guid userId);
     Task<string> GenerateNewJwt(Guid userId);
     Task<List<Guid>> GetUserOrgsAsync(Guid userId);
+    Task BanUserAsync(Guid userId, Guid adminUserId, string? banReason);
+    Task UnbanUserAsync(Guid userId, Guid adminUserId);
+    Task<PaginatedResult<AdminUserDto>> GetUsersAsync(int page, int size, string? emailSearch);
+    Task<bool> IsUserBannedAsync(Guid userId);
 }

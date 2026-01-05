@@ -12,34 +12,44 @@ public class CheckoutService : ICheckoutService
     private readonly ICheckoutRepository _checkoutRepository;
     private readonly IEventItemRepository _eventItemRepository;
     private readonly IEventSeatRepository _eventSeatRepository;
+    private readonly IEventSeatStateRepository _eventSeatStateRepository;
     private readonly ITicketRepository _ticketRepository;
     private readonly IRedisService _redisService;
     private readonly ISeatService _seatService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CheckoutService> _logger;
+    private readonly IIdentityService _identityService;
 
     public CheckoutService(
         ICheckoutRepository checkoutRepository,
         IEventItemRepository eventItemRepository,
         IEventSeatRepository eventSeatRepository,
+        IEventSeatStateRepository eventSeatStateRepository,
         ITicketRepository ticketRepository,
         IRedisService redisService,
         ISeatService seatService,
         IUnitOfWork unitOfWork,
-        ILogger<CheckoutService> logger)
+        ILogger<CheckoutService> logger,
+        IIdentityService identityService)
     {
         _checkoutRepository = checkoutRepository;
         _eventItemRepository = eventItemRepository;
         _eventSeatRepository = eventSeatRepository;
+        _eventSeatStateRepository = eventSeatStateRepository;
         _ticketRepository = ticketRepository;
         _redisService = redisService;
         _seatService = seatService;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _identityService = identityService;
     }
 
     public async Task<CheckoutDto> CreateCheckoutAsync(Guid userId, Guid eventItemId, List<string> seatIds)
     {
+        var isBanned = await _identityService.IsUserBannedAsync(userId);
+        if (isBanned)
+            throw new UnauthorizedAccessException("Your account has been banned. You cannot purchase tickets.");
+
         _logger.LogInformation("Creating checkout for user {UserId}, eventItem {EventItemId}, seats {SeatIds}", 
             userId, eventItemId, string.Join(",", seatIds));
 
@@ -190,6 +200,7 @@ public class CheckoutService : ICheckoutService
 
             var eventItem = checkout.EventItem;
             var tickets = new List<Ticket>();
+            var seatTicketMap = new Dictionary<Guid, Ticket>();
             
             var ticketClasses = await _ticketRepository.GetTicketClassesByEventItemIdAsync(eventItem.Id);
             
@@ -209,6 +220,7 @@ public class CheckoutService : ICheckoutService
                         TicketCode = GenerateTicketCode()
                     };
                     tickets.Add(ticket);
+                    seatTicketMap[seat.Id] = ticket;
                 }
             }
 
@@ -216,6 +228,26 @@ public class CheckoutService : ICheckoutService
             {
                 await _ticketRepository.AddRangeAsync(tickets);
                 _logger.LogInformation("Created {Count} tickets for checkout {CheckoutId}", tickets.Count, checkoutId);
+                
+                foreach (var kvp in seatTicketMap)
+                {
+                    var seatId = kvp.Key;
+                    var ticket = kvp.Value;
+                    
+                    var seatState = await _eventSeatStateRepository.GetByEventItemAndSeatAsync(eventItem.Id, seatId);
+                    if (seatState != null)
+                    {
+                        seatState.Status = SeatStatus.Paid;
+                        seatState.TicketId = ticket.Id;
+                        seatState.UpdatedAt = DateTime.UtcNow;
+                        await _eventSeatStateRepository.UpdateAsync(seatState);
+                        _logger.LogInformation("Updated EventSeatState for seat {SeatId} to Paid with ticket {TicketId}", seatId, ticket.Id);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("EventSeatState not found for eventItem {EventItemId} and seat {SeatId}", eventItem.Id, seatId);
+                    }
+                }
             }
 
             checkout.Status = "SUCCESS";
