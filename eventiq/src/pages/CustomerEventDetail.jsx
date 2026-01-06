@@ -9,19 +9,18 @@ import {
   Button,
   Tag,
   Descriptions,
-  Image,
 } from 'antd';
 import {
   CalendarOutlined,
-  DollarOutlined,
   ShopOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { customerAPI } from '../services/api';
+import DraftContentRenderer from '../components/Event/DraftContentRenderer';
 
-const { Title, Paragraph, Text } = Typography;
+const { Title, Text } = Typography;
 const { Panel } = Collapse;
 
 const CustomerEventDetail = () => {
@@ -79,20 +78,22 @@ const CustomerEventDetail = () => {
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
       <Card>
-        <Image
-          src={event.banner}
-          alt={event.name}
-          style={{ width: '100%', height: '400px', objectFit: 'cover', marginBottom: 24 }}
-        />
+        <div style={{ width: '100%', marginBottom: 24, marginLeft: '-24px', marginRight: '-24px', marginTop: '-24px' }}>
+          <img
+            src={event.banner}
+            alt={event.name}
+            style={{ width: '100%', height: '400px', objectFit: 'cover', display: 'block', maxWidth: '1104px', margin: '0 auto' }}
+          />
+        </div>
 
         <Title level={2} style={{ marginBottom: 16 }}>
           {event.name}
         </Title>
 
         {event.description && (
-          <Paragraph style={{ fontSize: 16, marginBottom: 24 }}>
-            {event.description}
-          </Paragraph>
+          <div style={{ marginBottom: 24 }}>
+            <DraftContentRenderer content={event.description} />
+          </div>
         )}
 
         <Descriptions bordered column={{ xs: 1, sm: 2, md: 3 }}>
@@ -127,6 +128,25 @@ const CustomerEventDetail = () => {
           </Descriptions.Item>
         </Descriptions>
 
+        {event.ticketClasses && event.ticketClasses.length > 0 && (
+          <div style={{ marginTop: 24 }}>
+            <Title level={4} style={{ marginBottom: 12 }}>
+              Ticket Classes
+            </Title>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {event.ticketClasses.map((ticketClass) => (
+                <Tag
+                  key={ticketClass.id}
+                  color={ticketClass.color || 'blue'}
+                  style={{ fontSize: 14, padding: '4px 12px' }}
+                >
+                  {ticketClass.name} - {formatPrice(ticketClass.price)}
+                </Tag>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div style={{ marginTop: 32 }}>
           <Title level={3} style={{ marginBottom: 16 }}>
             <FileTextOutlined /> Sessions
@@ -138,22 +158,13 @@ const CustomerEventDetail = () => {
                 <Panel
                   key={item.id}
                   header={
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <Text strong>{item.name}</Text>
-                        {item.lowestPrice && (
-                          <Tag color="green" style={{ marginLeft: 8 }}>
-                            <DollarOutlined /> {formatPrice(item.lowestPrice)}
-                          </Tag>
-                        )}
-                      </div>
-                    </div>
+                    <Text strong>{item.name}</Text>
                   }
                 >
                   {item.description && (
-                    <Paragraph style={{ marginBottom: 16 }}>
-                      {item.description}
-                    </Paragraph>
+                    <div style={{ marginBottom: 16 }}>
+                      <DraftContentRenderer content={item.description} />
+                    </div>
                   )}
                   <Descriptions column={2} size="small">
                     <Descriptions.Item label="Start Time">
