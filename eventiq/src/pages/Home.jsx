@@ -26,11 +26,6 @@ const Home = () => {
       title: 'Analytics & Reports',
       description: 'View detailed reports about events and organizational performance',
     },
-    {
-      icon: <StarOutlined className="text-5xl text-red-500" />,
-      title: 'Quality Assessment',
-      description: 'Collect feedback and ratings from event participants',
-    },
   ];
 
   const [orgModalVisible, setOrgModalVisible] = React.useState(false);
@@ -80,9 +75,9 @@ const Home = () => {
         <Title level={2} className="text-center mb-12">
           Key Features
         </Title>
-        <Row gutter={[24, 24]}>
+        <Row gutter={[24, 24]} justify="center">
           {features.map((feature, index) => (
-            <Col xs={24} sm={12} lg={6} key={index}>
+            <Col xs={24} sm={12} md={8} lg={8} key={index}>
               <Card
                 hoverable
                 className="h-full text-center rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
@@ -102,54 +97,7 @@ const Home = () => {
         </Row>
       </div>
 
-      {/* Stats Section */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-12 text-center text-white mb-16">
-        <Title level={2} className="text-white mb-8">
-          Platform Statistics
-        </Title>
-        <Row gutter={[32, 32]}>
-          <Col xs={12} sm={6}>
-            <div>
-              <Title level={1} className="text-white m-0 text-5xl">
-                1000+
-              </Title>
-              <Paragraph className="text-white/80 m-0">
-                Events Organized
-              </Paragraph>
-            </div>
-          </Col>
-          <Col xs={12} sm={6}>
-            <div>
-              <Title level={1} className="text-white m-0 text-5xl">
-                50K+
-              </Title>
-              <Paragraph className="text-white/80 m-0">
-                Participants
-              </Paragraph>
-            </div>
-          </Col>
-          <Col xs={12} sm={6}>
-            <div>
-              <Title level={1} className="text-white m-0 text-5xl">
-                500+
-              </Title>
-              <Paragraph className="text-white/80 m-0">
-                Trusted Organizations
-              </Paragraph>
-            </div>
-          </Col>
-          <Col xs={12} sm={6}>
-            <div>
-              <Title level={1} className="text-white m-0 text-5xl">
-                99%
-              </Title>
-              <Paragraph className="text-white/80 m-0">
-                Satisfaction Rate
-              </Paragraph>
-            </div>
-          </Col>
-        </Row>
-      </div>
+   
 
       {/* CTA Section */}
       <div className="text-center py-12">
