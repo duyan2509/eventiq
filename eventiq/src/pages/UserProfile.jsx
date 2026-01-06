@@ -6,7 +6,7 @@ import { authAPI } from '../services/api';
 
 const { Title } = Typography;
 
-const AdminProfile = () => {
+const UserProfile = () => {
     const { user } = useAuth();
     const { message } = App.useApp();
     const [passwordForm] = Form.useForm();
@@ -29,7 +29,7 @@ const AdminProfile = () => {
     };
 
     return (
-        <div>
+        <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
             <Title level={2}>Profile</Title>
             <Card>
                 <Title level={3}>
@@ -95,5 +95,5 @@ const AdminProfile = () => {
     );
 };
 
-export default AdminProfile;
+export default UserProfile;
 

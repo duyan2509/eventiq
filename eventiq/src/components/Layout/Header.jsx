@@ -104,6 +104,14 @@ const Header = () => {
   const handleMenuClick = ({ key }) => {
     const isBanned = user?.isBanned || user?.IsBanned || false;
     switch (key) {
+      case 'profile':
+        if (isBanned) {
+          warning('Your account has been banned. You cannot access this page.');
+          navigate('/my-ticket-b');
+        } else {
+          navigate('/profile');
+        }
+        break;
       case 'organizations':
         if (isBanned) {
           warning('Your account has been banned. You cannot access this page.');
@@ -198,7 +206,9 @@ const Header = () => {
     <>
       <AntHeader className="bg-white px-6 shadow-md flex items-center justify-between sticky top-0 z-50">
         {/* Logo */}
-        <div className="text-2xl font-bold text-blue-500">
+        <div className="text-2xl font-bold text-blue-500"
+        onClick={() => navigate('/')}
+        >
           EventIQ
         </div>
 
@@ -231,7 +241,7 @@ const Header = () => {
                   className="bg-blue-500"
                 />
                 <span className="font-medium">
-                  {user.firstName} {user.lastName}
+                  {user.email}
                 </span>
               </Space>
             </Dropdown>

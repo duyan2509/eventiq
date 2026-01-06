@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, Typography } from 'antd';
 import { useMessage } from '../../hooks/useMessage';
-import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined } from '@ant-design/icons';
+import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { Text } = Typography;
@@ -53,42 +53,6 @@ const RegisterModal = ({ visible, onCancel, onSuccess }) => {
         layout="vertical"
         requiredMark={false}
       >
-        <div className="flex gap-4">
-          <Form.Item
-            name="firstName"
-            label="First Name"
-            rules={[
-              { required: true, message: 'Please enter your first name!' },
-              { min: 2, message: 'First name must be at least 2 characters!' }
-            ]}
-            className="flex-1"
-          >
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="Enter first name"
-              size="large"
-              className="rounded-lg"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="lastName"
-            label="Last Name"
-            rules={[
-              { required: true, message: 'Please enter your last name!' },
-              { min: 2, message: 'Last name must be at least 2 characters!' }
-            ]}
-            className="flex-1"
-          >
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="Enter last name"
-              size="large"
-              className="rounded-lg"
-            />
-          </Form.Item>
-        </div>
-
         <Form.Item
           name="email"
           label="Email"
@@ -100,22 +64,6 @@ const RegisterModal = ({ visible, onCancel, onSuccess }) => {
           <Input
             prefix={<MailOutlined />}
             placeholder="Enter your email"
-            size="large"
-            className="rounded-lg"
-          />
-        </Form.Item>
-
-        <Form.Item
-          name="phoneNumber"
-          label="Phone Number"
-          rules={[
-            { required: true, message: 'Please enter your phone number!' },
-            { pattern: /^[0-9]{10,11}$/, message: 'Invalid phone number format!' }
-          ]}
-        >
-          <Input
-            prefix={<PhoneOutlined />}
-            placeholder="Enter phone number"
             size="large"
             className="rounded-lg"
           />

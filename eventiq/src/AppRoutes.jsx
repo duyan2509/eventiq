@@ -8,6 +8,7 @@ import AdminEventManagement from './pages/AdminEventManagement';
 import AdminRevenueManagement from './pages/AdminRevenueManagement';
 import AdminUserManagement from './pages/AdminUserManagement';
 import AdminProfile from './pages/AdminProfile';
+import UserProfile from './pages/UserProfile';
 import OrgList from './pages/OrgList';
 import OrganizationDetail from './pages/OrganizationDetail';
 import CreateEvent from './pages/CreateEvent';
@@ -82,13 +83,23 @@ const AppRoutes = () => (
         <Route
           path="/events/:eventId/:eventItemId?"
           element={
-            <ProtectedRoute roles={['Org', 'Staff']}>
+            <ProtectedRoute roles={['Org', 'User']}>
               <Checkin />
             </ProtectedRoute>
           }
         />
         <Route path="/payment" element={<PaymentSkeleton />} />
-        <Route path="/event/:eventId" element={<EventDetail />} />
+        <Route path="/event/:eventId" element={<CustomerEventDetail />} />
+        <Route
+          path="/profile"
+          element={
+            <BannedUserRoute>
+              <ProtectedRoute>
+                <UserProfile />
+              </ProtectedRoute>
+            </BannedUserRoute>
+          }
+        />
         <Route 
           path="/my-tickets" 
           element={

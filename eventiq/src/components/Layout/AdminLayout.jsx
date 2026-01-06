@@ -177,7 +177,7 @@ const AdminLayout = () => {
                                     style={{ backgroundColor: '#1890ff' }}
                                 />
                                 <span style={{ fontWeight: 500 }}>
-                                    {user?.firstName} {user?.lastName}
+                                    {user?.email}
                                 </span>
                             </Space>
                         </Dropdown>
