@@ -145,8 +145,6 @@ const TicketClassManager = ({ eventId }) => {
     const columns = [
         { title: 'Name', dataIndex: 'name' },
         { title: 'Price', dataIndex: 'price' },
-        { title: 'Sale Start', dataIndex: 'saleStart', render: v => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
-        { title: 'Sale End', dataIndex: 'saleEnd', render: v => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
         {
             title: 'Action',
             render: (_, record) => (
@@ -199,12 +197,6 @@ const TicketClassManager = ({ eventId }) => {
                     </Form.Item>
                     <Form.Item name="price" label="Price" rules={[{ required: true, type: 'number', min: 0, message: 'Price must be a number >= 0' }]}>
                         <InputNumber  style={{ width: '100%' }} type="number" min={0} />
-                    </Form.Item>
-                    <Form.Item name="saleStart" label="Sale Start">
-                        <DatePicker showTime style={{ width: '100%' }} />
-                    </Form.Item>
-                    <Form.Item name="saleEnd" label="Sale End">
-                        <DatePicker showTime style={{ width: '100%' }} />
                     </Form.Item>
                 </Form>
             </Modal>

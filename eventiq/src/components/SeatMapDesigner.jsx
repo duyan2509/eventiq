@@ -14,9 +14,7 @@ const SeatMapDesigner = () => {
     const [chart, setChart] = useState(null);
     const [seatMapData, setSeatMapData] = useState(null);
     
-    // Determine editable:
-    // - Org role or Event.Update permission from token/user
-    // - Or server returned seatMapData.isReadOnly === false
+
     const canEditByRole = (Array.isArray(user?.roles) && user.roles.includes('Org'))
         || (typeof user?.roles === 'string' && user.roles === 'Org')
         || (Array.isArray(user?.permission) && user.permission.includes('Event.Update'));
@@ -31,7 +29,6 @@ const SeatMapDesigner = () => {
                 console.log('Chart data received:', chartData);
                 setChart(chartData);
 
-                // Load seat map data from DB (for viewing existing seats with status)
                 try {
                     const seatMap = await eventAPI.getSeatMapForView(eventId, chartId);
                     setSeatMapData(seatMap);
@@ -59,7 +56,6 @@ const SeatMapDesigner = () => {
         );
     }
 
-    // Nếu không có chartKey, không thể hiển thị
     if (!chart?.key) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -70,8 +66,7 @@ const SeatMapDesigner = () => {
     }
 
     const publicKey = import.meta.env.VITE_SEAT_IO_PUBLIC_KEY;
-    // Secret key is required for Seats.io Designer (per official SDK)
-    // NOTE: exposing secret key in frontend is not recommended for production
+
     const secretKey = import.meta.env.VITE_SEAT_IO_SECRET_KEY || publicKey;
     if (!publicKey || !secretKey) {
         return (
@@ -82,12 +77,10 @@ const SeatMapDesigner = () => {
         );
     }
 
-    // Prepare booked objects for Seats.io viewer from DB data
     const bookedObjects = seatMapData?.seats
         ?.filter(seat => seat.status === 'paid')
         ?.map(seat => seat.seatKey) || [];
 
-    // Prepare selected objects (hold status) - will come from Redis in future
     const selectedObjects = seatMapData?.seats
         ?.filter(seat => seat.status === 'hold')
         ?.map(seat => seat.seatKey) || [];
@@ -105,6 +98,11 @@ const SeatMapDesigner = () => {
                     priceFormatter={price => '₫' + price}
                     region='OC'
                     language="en"
+                    features={{
+                        readOnly: ['chartName', 'categoryList'],
+                        disabled: ['chartName', 'categoryList', 'backgroundImage','images','icons','referenceChart','shapes']
+
+                    }}
                     onChartCreated={async (chartKey) => {
                         console.log('Chart created with key:', chartKey);
                         // If current chart.key is GUID, update it with the new chartKey from Seats.io

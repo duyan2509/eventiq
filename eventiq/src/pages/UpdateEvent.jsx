@@ -228,7 +228,7 @@ const UpdateEvent = () => {
     return (
         <div className="flex">
             {contextHolder}
-            <div className="flex-grow max-w-3xl mx-auto py-8 px-4">
+            <div className="flex-grow max-w-5xl mx-auto py-8 px-4">
                 <h1 className="text-2xl font-bold mb-6">Update Event</h1>
                 <Steps
                     current={currentStep}
