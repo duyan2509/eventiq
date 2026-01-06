@@ -16,15 +16,41 @@ public class CloudinaryStorageService:ICloudStorageService
 
     public async Task<string?> UploadAsync(Stream fileStream, string fileName)
     {
+        return await UploadAsync(fileStream, fileName, null, null, null);
+    }
+
+    public async Task<string?> UploadAsync(Stream fileStream, string fileName, int? width, int? height, string? crop)
+    {
+        var transformation = new Transformation();
+        
+        if (width.HasValue && height.HasValue)
+        {
+            transformation = transformation.Width(width.Value).Height(height.Value);
+            if (!string.IsNullOrEmpty(crop))
+            {
+                transformation = transformation.Crop(crop);
+            }
+            else
+            {
+                transformation = transformation.Crop("fill");
+            }
+        }
+        else if (width.HasValue)
+        {
+            transformation = transformation.Width(width.Value).Crop("scale");
+        }
+        else if (height.HasValue)
+        {
+            transformation = transformation.Height(height.Value).Crop("scale");
+        }
+        
+        transformation = transformation.Quality(80);
+
         var uploadParams = new ImageUploadParams
         {
             File = new FileDescription(fileName, fileStream),
             PublicId = Path.GetFileNameWithoutExtension(fileName),
-            Transformation = new Transformation()
-                .Width(290)
-                .Height(366)
-                .Crop("fill")
-                .Quality(80)
+            Transformation = transformation
         };
 
         var result = await _cloudinary.UploadAsync(uploadParams);

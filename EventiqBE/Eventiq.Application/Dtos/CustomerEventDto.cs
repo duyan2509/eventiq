@@ -26,6 +26,7 @@ public class CustomerEventDetailDto
     public required DateTime Start { get; set; }
     public required EventAddressDto EventAddress { get; set; }
     public required string OrganizationName { get; set; }
+    public List<CustomerTicketClassDto> TicketClasses { get; set; } = new();
     public List<CustomerEventItemDto> EventItems { get; set; } = new();
 }
 
@@ -36,7 +37,6 @@ public class CustomerEventItemDto
     public string? Description { get; set; }
     public DateTime Start { get; set; }
     public DateTime End { get; set; }
-    public decimal? LowestPrice { get; set; } // Giá vé thấp nhất trong EventItem
 }
 
 public class CustomerSeatMapDto

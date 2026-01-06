@@ -46,7 +46,7 @@ public class OrganizationService:IOrganizationService
                 UserId = userId.ToString()
             };
             await _orgRepository.AddAsync(org);
-            uploadedUrl = await _storageService.UploadAsync(dto.AvatarStream, org.Id.ToString());
+            uploadedUrl = await _storageService.UploadAsync(dto.AvatarStream, org.Id.ToString(), 400, 400, "fill");
             if (uploadedUrl != null)
                 org.Avatar = uploadedUrl;
             else 
@@ -89,7 +89,7 @@ public class OrganizationService:IOrganizationService
             if (dto.AvatarStream!=null)
             {
                 await _storageService.DeleteAsync(org.Avatar);
-                uploadedUrl = await _storageService.UploadAsync(dto.AvatarStream, org.Name);
+                uploadedUrl = await _storageService.UploadAsync(dto.AvatarStream, org.Name, 400, 400, "fill");
                 if (uploadedUrl != null)
                     org.Avatar = uploadedUrl;
                 else 

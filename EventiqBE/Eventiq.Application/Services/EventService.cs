@@ -69,7 +69,7 @@ public class EventService:IEventService
             await _unitOfWork.BeginTransactionAsync();
             var evnt = _mapper.Map<Event>(dto);
             await _eventRepository.AddAsync(evnt);
-            uploadedUrl = await _storageService.UploadAsync(dto.BannerStream, evnt.Id.ToString());
+            uploadedUrl = await _storageService.UploadAsync(dto.BannerStream, evnt.Id.ToString(), 1200, 600, "limit");
             if (uploadedUrl != null)
             {
                 evnt.Banner = uploadedUrl;
@@ -142,7 +142,7 @@ public class EventService:IEventService
             if (dto.BannerStream != null)
             {
                 await _storageService.DeleteAsync(evnt.Banner);
-                uploadedUrl = await _storageService.UploadAsync(dto.BannerStream, evnt.Id.ToString());
+                uploadedUrl = await _storageService.UploadAsync(dto.BannerStream, evnt.Id.ToString(), 1200, 600, "limit");
                 if (uploadedUrl != null)
                 {
                     evnt.Banner = uploadedUrl;
@@ -1029,26 +1029,33 @@ public class EventService:IEventService
             throw new UnauthorizedAccessException("Event is not published");
         
         var eventItems = await _eventItemRepository.GetAllByEventIdAsync(eventId);
+        var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
+        
+        var customerTicketClasses = ticketClasses.Select(tc => new CustomerTicketClassDto
+        {
+            Id = tc.Id,
+            Name = tc.Name,
+            Price = tc.Price,
+            Color = tc.Color
+        }).ToList();
         
         var customerEventItems = new List<CustomerEventItemDto>();
         
         foreach (var item in eventItems)
         {
-            var ticketClasses = await _ticketClassRepository.GetEventTicketClassesAsync(eventId);
-            decimal? lowestPrice = ticketClasses.Any() 
-                ? ticketClasses.Min(tc => tc.Price) 
-                : null;
-            
             customerEventItems.Add(new CustomerEventItemDto
             {
                 Id = item.Id,
                 Name = item.Name,
                 Description = item.Description,
                 Start = item.Start,
-                End = item.End,
-                LowestPrice = lowestPrice
+                End = item.End
             });
         }
+        
+        var earliestStart = eventItems.Any() 
+            ? eventItems.Min(ei => ei.Start) 
+            : evnt.Start;
         
         return new CustomerEventDetailDto
         {
@@ -1056,9 +1063,10 @@ public class EventService:IEventService
             Name = evnt.Name,
             Description = evnt.Description,
             Banner = evnt.Banner,
-            Start = evnt.Start,
+            Start = earliestStart,
             EventAddress = _mapper.Map<EventAddressDto>(evnt.EventAddress),
             OrganizationName = evnt.Organization?.Name ?? "Unknown",
+            TicketClasses = customerTicketClasses,
             EventItems = customerEventItems
         };
     }

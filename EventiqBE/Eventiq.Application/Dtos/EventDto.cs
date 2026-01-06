@@ -50,6 +50,7 @@ public class CreateEventDto
 }
 public class CreateEventResponse
 {
+    public Guid Id { get; set; }
     public required string Banner { get; set; } 
     public required string Name { get; set; }
     public string? Description { get; set; }

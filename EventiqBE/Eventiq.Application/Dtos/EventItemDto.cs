@@ -9,6 +9,7 @@ public class EventItemDto
     public DateTime End { get; set; }
     public DateTime Start { get; set; }
     public ChartDto Chart  { get; set; }
+    public int MaxPerUser { get; set; }
 }
 public class CreateEventItemDto
 {
