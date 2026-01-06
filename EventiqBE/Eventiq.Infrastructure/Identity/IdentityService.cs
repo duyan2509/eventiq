@@ -170,7 +170,12 @@ public class IdentityService(
         var user = await userManager.FindByIdAsync(userId.ToString());
         if (user == null)
             throw new UnauthorizedAccessException("User not found");
-        await userManager.ChangePasswordAsync(user,oldPassword, newPassword);
+        var result = await userManager.ChangePasswordAsync(user, oldPassword, newPassword);
+        if (!result.Succeeded)
+        {
+            var errorMessage = result.Errors.FirstOrDefault()?.Description ?? "Failed to change password";
+            throw new UnauthorizedAccessException(errorMessage);
+        }
     }
 
     public async Task ResetPasswordAsync(string email, string code, string newPassword)
