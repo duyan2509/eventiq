@@ -1,6 +1,18 @@
 export default async function handler(req, res) {
-    const { proxy = [] } = req.query;
-    const path = proxy.join('/');
+
+    const { proxy } = req.query;
+    
+    let pathArray;
+    if (Array.isArray(proxy)) {
+      pathArray = proxy;
+    } else if (proxy) {
+      pathArray = [proxy];
+    } else {
+      const urlMatch = req.url?.match(/^\/api\/(.+)$/);
+      pathArray = urlMatch ? urlMatch[1].split('/') : [];
+    }
+    
+    const path = pathArray.join('/');
   
     const backendBase = process.env.VITE_BACKEND_BASE;
     
@@ -12,8 +24,23 @@ export default async function handler(req, res) {
       });
     }
     
-    const targetUrl = `${backendBase}/api/${path}`;
-    console.log('Proxy →', targetUrl);
+    const baseUrl = backendBase.endsWith('/') ? backendBase.slice(0, -1) : backendBase;
+    const apiPath = path ? `/api/${path}` : '/api';
+    
+    let targetUrl;
+    try {
+      targetUrl = new URL(apiPath, baseUrl).toString();
+    } catch (error) {
+      targetUrl = `${baseUrl}${apiPath}`;
+    }
+    
+    console.log('Proxy request:', {
+      originalPath: req.url,
+      proxyQuery: req.query.proxy,
+      pathArray,
+      path,
+      targetUrl
+    });
   
     const headers = {
       'content-type': req.headers['content-type'] || 'application/json',
