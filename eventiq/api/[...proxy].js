@@ -2,7 +2,7 @@ export default async function handler(req, res) {
     const { proxy = [] } = req.query;
     const path = proxy.join('/');
   
-    const targetUrl = `${process.env.BACKEND_BASE}/${path}`;
+    const targetUrl = `${process.env.VITE_BACKEND_BASE}/${path}`;
     console.log('Proxy →', targetUrl);
   
     const headers = {
