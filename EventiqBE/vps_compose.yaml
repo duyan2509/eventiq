@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  api:
+    image: eventiq.api
+    container_name: eventiq-api
+    build:
+      context: .
+      dockerfile: Eventiq.Api/Dockerfile
+    expose:
+      - "8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Database
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=evtDb;Username=postgres;Password=123456
+
+      # Redis
+      Redis__ConnectionString: redis:6379
+
+      # JWT
+      Jwt__Key: your-super-secret-key-with-at-least-32-characters
+      Jwt__Issuer: Eventiq
+      Jwt__Audience: EventiqUsers
+      Jwt__ExpiryInMinutes: 60
+
+      # Seed admin
+      SeedAdmin__Email: admin@eventiq.com
+      SeedAdmin__Password: Admin@123
+
+      # External services
+      Mailtrap__Username: x
+      Mailtrap__Password: x
+
+      CloudinarySettings__CloudName: x
+      CloudinarySettings__ApiKey: x
+      CloudinarySettings__ApiSecret: x
+
+      SeatsIo__SecretKey: x
+
+      VnPay__TmnCode: x
+      VnPay__HashSecret: x
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    container_name: eventiq-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+    restart: always
+
+  postgres:
+    image: postgres:16
+    container_name: eventiq-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: evtDb
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redis:7.2
+    container_name: eventiq-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  pg_data:
+  redis_data:
