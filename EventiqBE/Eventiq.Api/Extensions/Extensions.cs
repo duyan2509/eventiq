@@ -32,8 +32,24 @@ public static class Extensions
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         builder.Services.AddCors(options =>
         {
+            var allowedOrigins = new List<string> { "http://localhost:3000" };
+            
+            // Add Vercel domain from configuration if available
+            var vercelUrl = builder.Configuration["Cors:VercelUrl"];
+            if (!string.IsNullOrEmpty(vercelUrl))
+            {
+                allowedOrigins.Add(vercelUrl);
+            }
+            
+            // Allow any Vercel preview deployments (wildcard)
+            var vercelPreviewPattern = builder.Configuration["Cors:VercelPreviewPattern"];
+            if (!string.IsNullOrEmpty(vercelPreviewPattern))
+            {
+                allowedOrigins.Add(vercelPreviewPattern);
+            }
+            
             options.AddPolicy("AllowFrontend",
-                policy => policy.WithOrigins("http://localhost:3000") 
+                policy => policy.WithOrigins(allowedOrigins.ToArray())
                                 .AllowAnyHeader()
                                 .AllowAnyMethod()
                                 .AllowCredentials());

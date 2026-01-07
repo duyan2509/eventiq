@@ -40,6 +40,9 @@ services:
       VnPay__TmnCode: x
       VnPay__HashSecret: x
 
+      Cors__VercelUrl: https://eventiq.vercel.app
+
+
     depends_on:
       postgres:
         condition: service_healthy
