@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL 
 const api = axios.create({
-  baseURL: API_BASE_URL||'/api/api',
+  baseURL: API_BASE_URL||'/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,12 +23,11 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor để xử lý lỗi
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Tránh tự động đăng xuất & điều hướng về trang chủ khi có 401 từ API
-    // Để UI tự xử lý (ví dụ hiển thị thông báo), giữ JWT để tránh mất phiên ngoài ý muốn
+
     if (error.response?.status === 401) {
       // no-op: do not clear token or redirect
       return Promise.reject(error);
