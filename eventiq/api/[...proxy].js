@@ -17,16 +17,20 @@ export default async function handler(req, res) {
       'authorization': req.headers['authorization'] ? 'present' : 'missing'
     });
 
-    const { proxy } = req.query;
+    // Vercel uses '...proxy' as the query key for catch-all routes
+    const proxyValue = req.query['...proxy'] || req.query.proxy;
     
     let pathArray;
-    if (Array.isArray(proxy)) {
-      pathArray = proxy;
-    } else if (proxy) {
-      pathArray = [proxy];
+    if (Array.isArray(proxyValue)) {
+      pathArray = proxyValue;
+    } else if (proxyValue) {
+      // Remove query string if present in the path
+      const cleanPath = proxyValue.split('?')[0];
+      pathArray = [cleanPath];
     } else {
-      // Fallback: extract from URL
-      const urlMatch = req.url?.match(/^\/api\/(.+)$/);
+      // Fallback: extract from URL (remove query string)
+      const urlPath = req.url?.split('?')[0];
+      const urlMatch = urlPath?.match(/^\/api\/(.+)$/);
       pathArray = urlMatch ? urlMatch[1].split('/') : [];
     }
     
@@ -57,7 +61,8 @@ export default async function handler(req, res) {
       
       if (req.method === 'GET' || req.method === 'HEAD') {
         Object.keys(req.query).forEach(key => {
-          if (key !== 'proxy') {
+          // Skip routing parameters
+          if (key !== 'proxy' && key !== '...proxy') {
             const value = req.query[key];
             if (Array.isArray(value)) {
               value.forEach(v => url.searchParams.append(key, v));
@@ -74,7 +79,8 @@ export default async function handler(req, res) {
       if (req.method === 'GET' || req.method === 'HEAD') {
         const queryParams = new URLSearchParams();
         Object.keys(req.query).forEach(key => {
-          if (key !== 'proxy') {
+          // Skip routing parameters
+          if (key !== 'proxy' && key !== '...proxy') {
             const value = req.query[key];
             if (Array.isArray(value)) {
               value.forEach(v => queryParams.append(key, v));
@@ -189,7 +195,7 @@ export default async function handler(req, res) {
       bodyType: typeof body,
       isBuffer: Buffer.isBuffer(body),
       hasBody: !!body,
-      bodyPreview: typeof body === 'string' ? body.substring(0, 100) : (Buffer.isBuffer(body) ? `Buffer(${body.length} bytes)` : JSON.stringify(body).substring(0, 100)),
+      bodyPreview: typeof body === 'string' ? body.substring(0, 100) : (Buffer.isBuffer(body) ? `Buffer(${body.length} bytes)` : (body ? JSON.stringify(body).substring(0, 100) : 'undefined')),
       headers: headers
     });
   
