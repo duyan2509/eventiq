@@ -53,18 +53,49 @@ export default async function handler(req, res) {
     
     let targetUrl;
     try {
-      targetUrl = new URL(apiPath, baseUrl).toString();
+      const url = new URL(apiPath, baseUrl);
+      
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        Object.keys(req.query).forEach(key => {
+          if (key !== 'proxy') {
+            const value = req.query[key];
+            if (Array.isArray(value)) {
+              value.forEach(v => url.searchParams.append(key, v));
+            } else {
+              url.searchParams.append(key, value);
+            }
+          }
+        });
+      }
+      
+      targetUrl = url.toString();
     } catch (error) {
-      targetUrl = `${baseUrl}${apiPath}`;
+      let url = `${baseUrl}${apiPath}`;
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        const queryParams = new URLSearchParams();
+        Object.keys(req.query).forEach(key => {
+          if (key !== 'proxy') {
+            const value = req.query[key];
+            if (Array.isArray(value)) {
+              value.forEach(v => queryParams.append(key, v));
+            } else {
+              queryParams.append(key, value);
+            }
+          }
+        });
+        const queryString = queryParams.toString();
+        if (queryString) {
+          url += `?${queryString}`;
+        }
+      }
+      targetUrl = url;
     }
     
     const contentType = req.headers['content-type'] || '';
     const isMultipart = contentType.includes('multipart/form-data');
     
-    // Prepare headers - forward all important headers
     const headers = {};
     
-    // Forward content-type (important for multipart with boundary)
     if (contentType) {
       headers['content-type'] = contentType;
     } else if (req.method !== 'GET' && req.method !== 'HEAD' && !isMultipart) {
@@ -76,16 +107,11 @@ export default async function handler(req, res) {
       headers['authorization'] = req.headers.authorization;
     }
     
-    // Prepare body
     let body;
     if (req.method === 'GET' || req.method === 'HEAD') {
       body = undefined;
     } else if (isMultipart) {
-      // For multipart, Vercel may not parse it automatically
-      // Try to get raw body - Vercel stores it in req.body but may be in different formats
-      
-      // Check if we can access the raw request stream
-      // Vercel serverless functions may provide body as Buffer, string, or undefined
+
       if (req.body === undefined || req.body === null) {
         // Body might not be parsed - this is a problem
         console.error('Multipart body is undefined - Vercel may not have parsed it');
@@ -95,18 +121,13 @@ export default async function handler(req, res) {
         });
       }
       
-      // Try different body formats
       if (Buffer.isBuffer(req.body)) {
-        // Raw multipart data as Buffer - use directly
         body = req.body;
       } else if (typeof req.body === 'string') {
-        // String representation - convert to Buffer
         body = Buffer.from(req.body, 'binary');
       } else if (req.body && typeof req.body === 'object') {
-        // Vercel may have parsed multipart into an object (unlikely but possible)
         console.warn('Multipart body is object, attempting to reconstruct:', Object.keys(req.body || {}));
         
-        // Try to reconstruct FormData if we have form-data package available
         try {
           const FormData = (await import('form-data')).default;
           const formData = new FormData();
@@ -133,14 +154,12 @@ export default async function handler(req, res) {
           headers['content-type'] = formDataHeaders['content-type'];
         } catch (error) {
           console.error('Error reconstructing FormData:', error);
-          // Fallback: return error
           return res.status(400).json({
             error: 'Failed to process multipart data',
             message: 'Could not reconstruct multipart form data'
           });
         }
       } else {
-        // Body is undefined or unexpected type
         console.error('Unexpected body type for multipart:', typeof req.body);
         return res.status(400).json({
           error: 'Invalid multipart body',
