@@ -1,34 +1,29 @@
 export default async function handler(req, res) {
+    console.log(' PROXY HANDLER CALLED');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Method:', req.method);
+    console.log('URL:', req.url);
+    console.log('Full Query:', JSON.stringify(req.query));
+    console.log('All Headers:', JSON.stringify(req.headers));
+    
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
+      console.log('Handling OPTIONS request');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       return res.status(200).end();
     }
 
-    // Log incoming request for debugging
-    console.log('=== Proxy Handler Called ===');
-    console.log('Method:', req.method);
-    console.log('URL:', req.url);
-    console.log('Query:', req.query);
-    console.log('Headers:', {
-      'content-type': req.headers['content-type'],
-      'authorization': req.headers['authorization'] ? 'present' : 'missing'
-    });
-
-    // Vercel uses '...proxy' as the query key for catch-all routes
     const proxyValue = req.query['...proxy'] || req.query.proxy;
     
     let pathArray;
     if (Array.isArray(proxyValue)) {
       pathArray = proxyValue;
     } else if (proxyValue) {
-      // Remove query string if present in the path
       const cleanPath = proxyValue.split('?')[0];
       pathArray = [cleanPath];
     } else {
-      // Fallback: extract from URL (remove query string)
       const urlPath = req.url?.split('?')[0];
       const urlMatch = urlPath?.match(/^\/api\/(.+)$/);
       pathArray = urlMatch ? urlMatch[1].split('/') : [];
