@@ -648,4 +648,16 @@ export const payoutAPI = {
   },
 };
 
+export const addressAPI = {
+  getProvinces: async () => {
+    const response = await api.get('/address/provinces');
+    return response.data;
+  },
+
+  getCommunes: async (provinceCode) => {
+    const response = await api.get(`/address/provinces/${provinceCode}/communes`);
+    return response.data;
+  },
+};
+
 export default api;

@@ -112,10 +112,11 @@ public class EventRepository:GenericRepository<Event>, IEventRepository
         
         if (!string.IsNullOrWhiteSpace(province) && province.ToLower() != "all")
         {
+            var provinceLower = province.ToLower();
             query = query.Where(e => 
                 e.EventAddress != null && (
-                    e.EventAddress.ProvinceCode.Equals(province, StringComparison.OrdinalIgnoreCase) ||
-                    e.EventAddress.ProvinceName.ToLower().Contains(province.ToLower())));
+                    e.EventAddress.ProvinceCode.ToLower() == provinceLower ||
+                    e.EventAddress.ProvinceName.ToLower().Contains(provinceLower)));
         }
         
         var totalCount = await query.CountAsync();

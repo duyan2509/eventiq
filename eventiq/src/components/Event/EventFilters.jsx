@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Select, Space } from 'antd';
-import axios from 'axios';
+import { addressAPI } from '../../services/api';
 import TimeSortFilter from './TimeSortFilter';
 
 const { Option } = Select;
@@ -13,8 +13,8 @@ const EventFilters = ({ timeSort, province, eventType, onTimeSortChange, onProvi
     const fetchProvinces = async () => {
       try {
         setLoading(true);
-        const res = await axios.get('https://production.cas.so/address-kit/2025-07-01/provinces');
-        setProvinces(res.data.provinces || []);
+        const res = await addressAPI.getProvinces();
+        setProvinces(res.provinces || []);
       } catch (err) {
         console.error('Failed to load provinces:', err);
       } finally {

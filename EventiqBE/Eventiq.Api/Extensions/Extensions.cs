@@ -149,6 +149,7 @@ public static class Extensions
                 new LowercaseControllerTransformer()));
         });
 
+        builder.Services.AddHttpClient();
         builder.Services.AddHealthChecks();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(opt =>

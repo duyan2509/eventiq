@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button, Anchor, Card, Steps } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { EditorState, RichUtils, convertToRaw, convertFromRaw } from 'draft-js';
 import { useMessage } from '../hooks/useMessage';
-import { eventAPI, bankAPI } from '../services/api';
+import { eventAPI, bankAPI, addressAPI } from '../services/api';
 import EventInfoForm from '../components/forms/EventInfoForm';
 import EventAddressForm from '../components/forms/EventAddressForm';
 import PaymentInfoForm from '../components/forms/PaymentInfoForm';
@@ -92,8 +91,8 @@ const UpdateEvent = () => {
     useEffect(() => {
         const fetchProvinces = async () => {
             try {
-                const res = await axios.get('https://production.cas.so/address-kit/2025-07-01/provinces');
-                setProvinces(res.data.provinces);
+                const res = await addressAPI.getProvinces();
+                setProvinces(res.provinces);
             } catch (err) {
                 console.error(err)
                 error('Failed to load provinces');
@@ -107,8 +106,8 @@ const UpdateEvent = () => {
         if (selectedProvince) {
             const fetchCommunes = async () => {
                 try {
-                    const res = await axios.get(`https://production.cas.so/address-kit/2025-07-01/provinces/${selectedProvince}/communes`);
-                    setCommunes(res.data.communes);
+                    const res = await addressAPI.getCommunes(selectedProvince);
+                    setCommunes(res.communes);
                 } catch (err) {
                     console.error(err)
                     error('Failed to load communes');

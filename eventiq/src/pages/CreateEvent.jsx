@@ -4,9 +4,8 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { Editor, EditorState, RichUtils, convertToRaw } from 'draft-js';
 import 'draft-js/dist/Draft.css';
-import { organizationAPI, eventAPI } from '../services/api';
+import { organizationAPI, eventAPI, addressAPI } from '../services/api';
 import { useMessage } from '../hooks/useMessage';
-import axios from 'axios';
 
 const styleMap = {
     'BOLD': { fontWeight: 'bold' },
@@ -57,8 +56,8 @@ const CreateEvent = () => {
     useEffect(() => {
         const fetchProvinces = async () => {
             try {
-                const res = await axios.get('https://production.cas.so/address-kit/2025-07-01/provinces');
-                setProvinces(res.data.provinces);
+                const res = await addressAPI.getProvinces();
+                setProvinces(res.provinces);
             } catch (err) {
                 error('Failed to load provinces');
             }
@@ -71,8 +70,8 @@ const CreateEvent = () => {
         if (selectedProvince) {
             const fetchCommunes = async () => {
                 try {
-                    const res = await axios.get(`https://production.cas.so/address-kit/2025-07-01/provinces/${selectedProvince}/communes`);
-                    setCommunes(res.data.communes);
+                    const res = await addressAPI.getCommunes(selectedProvince);
+                    setCommunes(res.communes);
                 } catch (err) {
                     error('Failed to load communes');
                 }
