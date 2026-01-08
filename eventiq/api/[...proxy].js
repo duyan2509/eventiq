@@ -1,21 +1,21 @@
 console.log('Proxy module loaded at:', new Date().toISOString());
 
 export default async function handler(req, res) {
-    console.error('=== PROXY HANDLER CALLED ===');
+    console.error(' PROXY HANDLER CALLED');
     console.error('Timestamp:', new Date().toISOString());
     console.error('Method:', req.method);
     console.error('URL:', req.url);
     console.error('Full Query:', JSON.stringify(req.query));
     console.error('Query Keys:', Object.keys(req.query));
+    console.error('Content-Type:', req.headers['content-type']);
     console.error('Headers:', {
       'content-type': req.headers['content-type'],
       'authorization': req.headers['authorization'] ? 'present' : 'missing',
-      'user-agent': req.headers['user-agent']
+      'user-agent': req.headers['user-agent']?.substring(0, 50)
     });
     
-    // Also log to console.log
-    console.log('=== PROXY HANDLER CALLED ===');
-    console.log('Method:', req.method, 'URL:', req.url);
+    // Also log to console.log for visibility
+    console.log(' PROXY HANDLER:', req.method, req.url);
     
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
@@ -27,33 +27,47 @@ export default async function handler(req, res) {
     }
 
 
+
     const proxyValue = req.query['...proxy'] || req.query.proxy;
     
     console.error('Proxy value from query:', proxyValue);
     console.error('All query keys:', Object.keys(req.query));
+    console.error('Request URL:', req.url);
     
     let pathArray;
     if (Array.isArray(proxyValue)) {
       pathArray = proxyValue.map(p => p.split('?')[0]).filter(p => p);
+      console.error('Path from query array:', pathArray);
     } else if (proxyValue) {
       const cleanPath = proxyValue.split('?')[0];
       pathArray = cleanPath ? [cleanPath] : [];
+      console.error('Path from query string:', pathArray);
     } else {
-
       const urlPath = req.url?.split('?')[0] || '';
       console.error('No proxy query param, extracting from URL:', urlPath);
       
       const urlMatch = urlPath.match(/^\/api\/(.+)$/);
       if (urlMatch) {
         const fullPath = urlMatch[1];
-        pathArray = fullPath.split('/').filter(p => p); // Filter empty strings
+        pathArray = fullPath.split('/').filter(p => p); 
         console.error('Extracted path from URL:', pathArray);
       } else if (urlPath === '/api') {
         pathArray = [];
         console.error('Root /api path');
       } else {
-        pathArray = [];
-        console.error('No path match, using empty array');
+        if (urlPath.startsWith('/')) {
+          const altMatch = urlPath.match(/^\/(.+)$/);
+          if (altMatch) {
+            pathArray = altMatch[1].split('/').filter(p => p);
+            console.error('Extracted path (no /api prefix):', pathArray);
+          } else {
+            pathArray = [];
+            console.error('No path match, using empty array');
+          }
+        } else {
+          pathArray = [];
+          console.error('No path match, using empty array');
+        }
       }
     }
     
@@ -197,14 +211,20 @@ export default async function handler(req, res) {
         });
       }
     } else {
-      // For JSON requests
+
       if (req.body) {
         if (typeof req.body === 'string') {
           body = req.body;
-        } else {
+          console.error('Body is string, using as-is, length:', body.length);
+        } else if (typeof req.body === 'object') {
           body = JSON.stringify(req.body);
+          console.error('Body is object, stringified, length:', body.length);
+        } else {
+          body = req.body;
+          console.error('Body is other type:', typeof req.body);
         }
       } else {
+        console.error('Body is undefined for', req.method, 'request to', req.url);
         body = undefined;
       }
     }
