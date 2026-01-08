@@ -28,11 +28,23 @@ public class PaymentController : BaseController
                 return Unauthorized(new { message = "User not authenticated" });
             }
 
-            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var host = Request.Host.Value;
+            
+            var forwardedHost = Request.Headers["X-Forwarded-Host"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(forwardedHost))
+            {
+                host = forwardedHost;
+            }
+            
+            var baseUrl = $"https://{host}";
+            
             var returnUrl = string.IsNullOrEmpty(request.ReturnUrl) 
-                ? $"{baseUrl}/payment/return" 
+                ? $"{baseUrl}/payment" 
                 : request.ReturnUrl;
             var ipnUrl = $"{baseUrl}/api/payment/ipn";
+
+            _logger.LogInformation("Creating payment URL - BaseUrl: {BaseUrl}, ReturnUrl: {ReturnUrl}, IpnUrl: {IpnUrl}", 
+                baseUrl, returnUrl, ipnUrl);
 
             var result = await _paymentService.CreatePaymentUrlAsync(
                 request.CheckoutId, 
@@ -122,6 +134,47 @@ public class PaymentController : BaseController
         }
     }
 
+
+    [AllowAnonymous]
+    [HttpGet("return")]
+    public async Task<IActionResult> PaymentReturn()
+    {
+        try
+        {
+            _logger.LogInformation("VNPAY Payment Return received - QueryString: {QueryString}", Request.QueryString);
+            
+            // Log all query parameters
+            var queryParams = new Dictionary<string, string>();
+            foreach (var kvp in Request.Query)
+            {
+                if (!string.IsNullOrEmpty(kvp.Value))
+                {
+                    queryParams[kvp.Key] = kvp.Value.ToString();
+                    _logger.LogInformation("Return parameter: {Key} = {Value}", kvp.Key, kvp.Value);
+                }
+            }
+
+            // Return redirect to frontend with query params
+            var frontendUrl = Request.Headers["Referer"].ToString();
+            if (string.IsNullOrEmpty(frontendUrl))
+            {
+                // Try to get from configuration or use default
+                frontendUrl = "https://eventiq.vercel.app";
+            }
+            
+            var queryString = Request.QueryString.ToString();
+            var redirectUrl = $"{frontendUrl}/payment{queryString}";
+            
+            _logger.LogInformation("Redirecting to frontend: {RedirectUrl}", redirectUrl);
+            
+            return Redirect(redirectUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing payment return");
+            return BadRequest(new { message = "Error processing payment return" });
+        }
+    }
 
     [HttpGet("{paymentId}")]
     public async Task<ActionResult<PaymentDto>> GetPayment([FromRoute] Guid paymentId)

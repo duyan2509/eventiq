@@ -276,7 +276,8 @@ public class PaymentService : IPaymentService
                     {
                         TicketClassId = matchingTicketClass.Id,
                         EventItemId = eventItem.Id,
-                        UserId = payment.UserId.ToString()
+                        UserId = payment.UserId.ToString(),
+                        TicketCode = GenerateTicketCode()
                     };
                     tickets.Add(ticket);
                     seatTicketMap[seat.Id] = ticket;
@@ -419,6 +420,12 @@ public class PaymentService : IPaymentService
             IsVerified = payment.IsVerified,
             CreatedAt = payment.CreatedAt
         };
+    }
+
+    private string GenerateTicketCode()
+    {
+        var guid = Guid.NewGuid().ToString("N").ToUpper();
+        return guid.Substring(0, 8);
     }
 }
 
