@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Input, Button, Space, Dropdown, Avatar, Badge } from 'antd';
 import { useMessage } from '../../hooks/useMessage';
-import { SearchOutlined, UserOutlined, LogoutOutlined, TeamOutlined, BellOutlined, CalendarOutlined } from '@ant-design/icons';
+import { SearchOutlined, UserOutlined, LogoutOutlined, TeamOutlined, BellOutlined, CalendarOutlined, CreditCardOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { staffAPI, transferAPI } from '../../services/api';
 import { signalRService } from '../../services/signalr';
 import LoginModal from '../Auth/LoginModal';
 import RegisterModal from '../Auth/RegisterModal';
+import PaymentNoteModal from '../Payment/PaymentNoteModal';
 
 const { Header: AntHeader } = Layout;
 const { Search } = Input;
@@ -21,6 +22,7 @@ const Header = () => {
   const [searchValue, setSearchValue] = useState('');
   const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
   const [pendingTransfersCount, setPendingTransfersCount] = useState(0);
+  const [paymentNoteVisible, setPaymentNoteVisible] = useState(false);
 
   const handleSearch = (value) => {
     if (value.trim()) {
@@ -228,6 +230,14 @@ const Header = () => {
 
         {/* Auth Section */}
         <Space size="middle">
+          <Button 
+            type="default" 
+            icon={<CreditCardOutlined />}
+            onClick={() => setPaymentNoteVisible(true)}
+            className="text-orange-500 border-orange-500 hover:bg-orange-50"
+          >
+            Note Payment
+          </Button>
           {user ? (
             <Dropdown
               menu={{ items: userMenuItems, onClick: handleMenuClick }}
@@ -282,6 +292,11 @@ const Header = () => {
           setRegisterVisible(false);
           success('Registration successful');
         }}
+      />
+
+      <PaymentNoteModal 
+        visible={paymentNoteVisible}
+        onCancel={() => setPaymentNoteVisible(false)}
       />
     </>
   );
