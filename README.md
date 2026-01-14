@@ -2,6 +2,11 @@
 
 Eventiq là một hệ thống quản lý sự kiện và bán vé trực tuyến, cho phép các tổ chức tạo và quản lý sự kiện, bán vé, quản lý nhân viên, và xử lý thanh toán. Hệ thống tích hợp với Seats.io để quản lý sơ đồ ghế ngồi và VNPay để xử lý thanh toán.
 
+## Hosting Information
+
+- **VPS Hosting**: 07/01/2026 - 13/01/2026
+- **Render Hosting**: từ 14/01/2026 - now (Note: chờ backend start 2-3p)
+
 ## Tech Stack
 
 ### Backend Framework
