@@ -42,12 +42,15 @@ public class RedisService : IRedisService
     ";
     
     private readonly LuaScript _lockSeatsLuaScript;
+    private readonly LoadedLuaScript _loadedLuaScript;
 
     public RedisService(IConnectionMultiplexer redis)
     {
         _redis = redis;
         _database = redis.GetDatabase();
         _lockSeatsLuaScript = LuaScript.Prepare(LockSeatsScript);
+        var server = _redis.GetServer(_redis.GetEndPoints().First());
+        _loadedLuaScript = _lockSeatsLuaScript.Load(server);
     }
 
     public async Task<bool> LockSeatsAsync(Guid eventItemId, List<string> seatIds, TimeSpan ttl)
@@ -63,19 +66,17 @@ public class RedisService : IRedisService
         };
         values.AddRange(seatIds.Select(s => (RedisValue)s));
 
-        var server = _redis.GetServer(_redis.GetEndPoints().First());
-        var prepared = _lockSeatsLuaScript.Load(server);
+
         var result = await _database.ScriptEvaluateAsync(
-            prepared.Hash, 
+            _loadedLuaScript.Hash, 
             keys, 
             values.ToArray());
         
         if (result.Type == ResultType.Array && result.Length >= 2)
         {
             var lockedCount = (int)result[0];
-            var failedKeys = result[1];
             
-            return lockedCount > 0 && (failedKeys.Length == 0 || failedKeys.IsNull);
+            return lockedCount == seatIds.Count;
         }
         
         return false;
