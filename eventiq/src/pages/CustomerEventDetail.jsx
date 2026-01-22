@@ -19,6 +19,8 @@ import {
 import dayjs from 'dayjs';
 import { customerAPI } from '../services/api';
 import DraftContentRenderer from '../components/Event/DraftContentRenderer';
+import { useAuth } from '../contexts/AuthContext';
+import LoginModal from '../components/Auth/LoginModal';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -26,8 +28,11 @@ const { Panel } = Collapse;
 const CustomerEventDetail = () => {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
+  const [pendingEventItemId, setPendingEventItemId] = useState(null);
 
   useEffect(() => {
     if (eventId) {
@@ -56,7 +61,20 @@ const CustomerEventDetail = () => {
   };
 
   const handleBuyTicket = (eventItemId) => {
+    if (!isAuthenticated) {
+      setPendingEventItemId(eventItemId);
+      setLoginModalVisible(true);
+      return;
+    }
     navigate(`/events/${eventId}/items/${eventItemId}/seats`);
+  };
+
+  const handleLoginSuccess = () => {
+    setLoginModalVisible(false);
+    if (pendingEventItemId) {
+      navigate(`/events/${eventId}/items/${pendingEventItemId}/seats`);
+      setPendingEventItemId(null);
+    }
   };
 
   if (loading) {
@@ -179,6 +197,7 @@ const CustomerEventDetail = () => {
                       type="primary"
                       size="large"
                       onClick={() => handleBuyTicket(item.id)}
+                      disabled={dayjs().isAfter(dayjs(item.start))}
                     >
                       Buy Ticket
                     </Button>
@@ -191,6 +210,15 @@ const CustomerEventDetail = () => {
           )}
         </div>
       </Card>
+
+      <LoginModal
+        visible={loginModalVisible}
+        onCancel={() => {
+          setLoginModalVisible(false);
+          setPendingEventItemId(null);
+        }}
+        onSuccess={handleLoginSuccess}
+      />
     </div>
   );
 };
